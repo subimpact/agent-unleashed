@@ -9,6 +9,7 @@ import (
 
 	"agent-unleashed/pkg/adapters"
 	"agent-unleashed/pkg/cron"
+	"agent-unleashed/pkg/doctor"
 	"agent-unleashed/pkg/engine"
 )
 
@@ -81,6 +82,12 @@ func (c *CLIGateway) Start(ctx context.Context) error {
 				fmt.Println("🔇 Verbose Mode: [DISABLED]")
 			}
 			fmt.Println()
+			continue
+		}
+
+		if lower == ":doctor" {
+			rep := doctor.RunDiagnostics("config.yaml", false)
+			doctor.PrintDoctorReport(rep)
 			continue
 		}
 
@@ -359,6 +366,7 @@ func (c *CLIGateway) handleCronCommand(input string) {
 
 func (c *CLIGateway) printHelp() {
 	fmt.Println("\n📖 Available Commands:")
+	fmt.Println("  :doctor         - Run system health check & diagnostics")
 	fmt.Println("  :context        - Visual context window gauge & token breakdown")
 	fmt.Println("  :verbose        - Toggle verbose mode on/off (detailed commands & debug)")
 	fmt.Println("  :profile        - View & manage dialectic user persona & coding profile")

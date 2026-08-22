@@ -14,6 +14,7 @@ import (
 
 	"agent-unleashed/pkg/config"
 	"agent-unleashed/pkg/cron"
+	"agent-unleashed/pkg/doctor"
 	"agent-unleashed/pkg/engine"
 	"agent-unleashed/pkg/gateways"
 	"agent-unleashed/pkg/wizard"
@@ -31,6 +32,17 @@ func main() {
 			if err := wizard.RunSetupWizard(configPath); err != nil {
 				log.Fatalf("Setup failed: %v", err)
 			}
+			return
+
+		case "doctor":
+			autoFix := false
+			for _, a := range os.Args[2:] {
+				if a == "--fix" || a == "-f" {
+					autoFix = true
+				}
+			}
+			rep := doctor.RunDiagnostics(configPath, autoFix)
+			doctor.PrintDoctorReport(rep)
 			return
 
 		case "status":
@@ -164,6 +176,8 @@ func printHelp() {
 	fmt.Println("\nUsage:")
 	fmt.Println("  agt-ul               Start interactive REPL & 24/7 daemon")
 	fmt.Println("  agt-ul -v            Start in Verbose mode")
+	fmt.Println("  agt-ul doctor        Run full system health check & diagnostics")
+	fmt.Println("  agt-ul doctor --fix  Run diagnostics and auto-repair issues")
 	fmt.Println("  agt-ul setup         Run interactive setup wizard")
 	fmt.Println("  agt-ul status        Display detected CLI tools & system diagnostics")
 	fmt.Println("  agt-ul memory        Inspect Palace-Mnemosyne memory stats")
