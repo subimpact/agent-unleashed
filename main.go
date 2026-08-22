@@ -17,6 +17,7 @@ import (
 	"agent-unleashed/pkg/doctor"
 	"agent-unleashed/pkg/engine"
 	"agent-unleashed/pkg/gateways"
+	"agent-unleashed/pkg/skills"
 	"agent-unleashed/pkg/updater"
 	"agent-unleashed/pkg/wizard"
 )
@@ -46,6 +47,27 @@ func main() {
 				fmt.Printf("Agent-Unleashed (agt-ul) v%s\n", updater.GetVersion())
 				return
 			}
+
+		case "skill", "skills":
+			if len(os.Args) >= 4 && (os.Args[2] == "install" || os.Args[2] == "add") {
+				source := os.Args[3]
+				cfg, _ := config.LoadConfig(configPath)
+				indexer := skills.NewSkillIndexer(cfg.System.SkillsDir)
+				meta, err := indexer.InstallSkill(source)
+				if err != nil {
+					log.Fatalf("❌ Skill install failed: %v", err)
+				}
+				fmt.Printf("✅ Successfully installed skill '%s' to %s\n", meta.Name, meta.Path)
+				return
+			}
+			cfg, _ := config.LoadConfig(configPath)
+			indexer := skills.NewSkillIndexer(cfg.System.SkillsDir)
+			fmt.Printf("\n⚡ Installed Skills (%d in %s):\n", len(indexer.ListSkills()), cfg.System.SkillsDir)
+			for _, s := range indexer.ListSkills() {
+				fmt.Printf("  • %-25s : %s\n", s.Name, s.Description)
+			}
+			fmt.Println()
+			return
 
 		case "doctor":
 			autoFix := false
@@ -192,6 +214,8 @@ func printHelp() {
 	fmt.Println("  agt-ul update        Self-update and rebuild binary from source")
 	fmt.Println("  agt-ul doctor        Run full system health check & diagnostics")
 	fmt.Println("  agt-ul doctor --fix  Run diagnostics and auto-repair issues")
+	fmt.Println("  agt-ul skill install <repo> Install skill from GitHub (e.g. Leonxlnx/taste-skill)")
+	fmt.Println("  agt-ul skills        List all discovered skills")
 	fmt.Println("  agt-ul setup         Run interactive setup wizard")
 	fmt.Println("  agt-ul status        Display detected CLI tools & system diagnostics")
 	fmt.Println("  agt-ul memory        Inspect Palace-Mnemosyne memory stats")
