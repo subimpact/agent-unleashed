@@ -83,6 +83,13 @@ type WikiConfig struct {
 	AutoBuild bool   `yaml:"auto_build"`
 }
 
+type LCMConfig struct {
+	Enabled        bool   `yaml:"enabled"`
+	DBPath         string `yaml:"db_path"`
+	TokenThreshold int    `yaml:"token_threshold"`
+	AutoCompress   bool   `yaml:"auto_compress"`
+}
+
 type GatewaysConfig struct {
 	CLI      CLIGatewayConfig      `yaml:"cli"`
 	Telegram TelegramGatewayConfig `yaml:"telegram"`
@@ -96,6 +103,7 @@ type AppConfig struct {
 	Memory     PalaceMemoryConfig `yaml:"memory"`
 	Reflection ReflectionConfig   `yaml:"reflection"`
 	Wiki       WikiConfig         `yaml:"wiki"`
+	LCM        LCMConfig          `yaml:"lcm"`
 	Gateways   GatewaysConfig     `yaml:"gateways"`
 }
 
@@ -141,6 +149,12 @@ func LoadConfig(configPath string) (*AppConfig, error) {
 			Enabled:   true,
 			WikiDir:   "./.agents/wiki",
 			AutoBuild: true,
+		},
+		LCM: LCMConfig{
+			Enabled:        true,
+			DBPath:         "./data/lcm.sqlite",
+			TokenThreshold: 8000,
+			AutoCompress:   true,
 		},
 		Gateways: GatewaysConfig{
 			CLI:     CLIGatewayConfig{Enabled: true},

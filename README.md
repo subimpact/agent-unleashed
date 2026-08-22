@@ -69,6 +69,7 @@ graph TD
 5. **🌐 24/7 Multi-Channel Gateways:** Real-time WebSocket streaming (`ws://localhost:8080/ws`), Telegram Bot (with inline approval buttons), Discord DM pair programming, and REST APIs. See [Gateways Guide](docs/GATEWAYS.md).
 6. **🩺 System Doctor & Diagnostics:** 10-point system health audit (`agt-ul doctor`) and auto-remediation (`agt-ul doctor --fix`). See [Doctor & Updater Guide](docs/DOCTOR_AND_UPDATER.md).
 7. **⚡ Built-In Skill Package Manager:** Install specialized skills directly from GitHub (`agt-ul skill install Leonxlnx/taste-skill`). See [Skills & Plugins Guide](docs/SKILLS_AND_PLUGINS.md).
+8. **🧠 Lossless Context Management (LCM):** Hierarchical DAG summarization + permanent SQLite message ledger + verbatim past retrieval (`lcm_grep`, `lcm_describe`, `lcm_expand`) inspired by [hermes-lcm](https://github.com/stephenschoettler/hermes-lcm). See [Lossless Context Management Guide](docs/LOSSLESS_CONTEXT_MANAGEMENT.md).
 
 ---
 

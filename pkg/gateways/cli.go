@@ -144,6 +144,11 @@ func (c *CLIGateway) Start(ctx context.Context) error {
 			continue
 		}
 
+		if strings.HasPrefix(lower, ":lcm") {
+			c.handleLCMCommand(input, sessionID)
+			continue
+		}
+
 		if lower == ":memory" {
 			c.printMemoryPalace()
 			continue
@@ -386,6 +391,7 @@ func (c *CLIGateway) printHelp() {
 	fmt.Println("  :verbose        - Toggle verbose mode on/off (detailed commands & debug)")
 	fmt.Println("  :profile        - View & manage dialectic user persona & coding profile")
 	fmt.Println("  :wiki           - Browse or search project LLM-Wiki knowledge graph (:wiki list/read/search)")
+	fmt.Println("  :lcm            - Lossless Context Management DAG inspector (:lcm describe/grep/expand)")
 	fmt.Println("  :cron           - List or manage 24/7 background scheduled tasks (:cron list/add/remove)")
 	fmt.Println("  :stats          - View session execution diagnostics and token metrics")
 	fmt.Println("  :drivers        - List all detected AI CLI tools on this system")
@@ -395,6 +401,72 @@ func (c *CLIGateway) printHelp() {
 	fmt.Println("  :clear          - Clear terminal screen")
 	fmt.Println("  :exit           - Exit CLI")
 	fmt.Println()
+}
+
+func (c *CLIGateway) handleLCMCommand(input string, sessionID string) {
+	if c.engine.LCMEngine == nil {
+		fmt.Println("❌ Lossless Context Management (LCM) engine is not initialized.")
+		return
+	}
+
+	parts := strings.Fields(input)
+	if len(parts) == 1 || (len(parts) == 2 && parts[1] == "describe") {
+		desc, err := c.engine.LCMEngine.Describe(sessionID)
+		if err != nil {
+			fmt.Printf("❌ LCM Describe error: %v\n\n", err)
+			return
+		}
+		fmt.Printf("\n%s\n", desc)
+		return
+	}
+
+	sub := parts[1]
+	switch sub {
+	case "grep", "search":
+		if len(parts) < 3 {
+			fmt.Println("Usage: :lcm grep <query>")
+			return
+		}
+		query := strings.Join(parts[2:], " ")
+		matches, err := c.engine.LCMEngine.Grep(sessionID, query)
+		if err != nil {
+			fmt.Printf("❌ LCM Grep error: %v\n\n", err)
+			return
+		}
+		fmt.Printf("\n🔍 LCM Search Results for '%s' (%d matches):\n", query, len(matches))
+		for _, m := range matches {
+			contentPreview := m.Content
+			if len(contentPreview) > 90 {
+				contentPreview = contentPreview[:87] + "..."
+			}
+			fmt.Printf("  • [ID #%d | %s | %d tok] %s\n", m.ID, m.Role, m.Tokens, contentPreview)
+		}
+		fmt.Println()
+
+	case "expand", "read":
+		if len(parts) < 3 {
+			fmt.Println("Usage: :lcm expand <message_id>")
+			return
+		}
+		var msgID int64
+		fmt.Sscanf(parts[2], "%d", &msgID)
+		msg, err := c.engine.LCMEngine.Expand(msgID)
+		if err != nil {
+			fmt.Printf("❌ %v\n\n", err)
+			return
+		}
+		fmt.Printf("\n============================================================\n")
+		fmt.Printf("  📜 LCM Verbatim Message #%d [%s | %d tokens]\n", msg.ID, msg.Role, msg.Tokens)
+		fmt.Printf("============================================================\n")
+		fmt.Println(msg.Content)
+		fmt.Printf("============================================================\n\n")
+
+	default:
+		fmt.Println("Usage:")
+		fmt.Println("  :lcm                     - Describe current session DAG and token compaction")
+		fmt.Println("  :lcm grep <query>        - Search across verbatim historical messages")
+		fmt.Println("  :lcm expand <message_id> - Expand verbatim message from store")
+	}
 }
 
 func (c *CLIGateway) handleWikiCommand(input string) {

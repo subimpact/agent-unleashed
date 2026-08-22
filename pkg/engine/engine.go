@@ -8,6 +8,7 @@ import (
 
 	"agent-unleashed/pkg/adapters"
 	"agent-unleashed/pkg/config"
+	"agent-unleashed/pkg/lcm"
 	"agent-unleashed/pkg/memory"
 	"agent-unleashed/pkg/skills"
 	"agent-unleashed/pkg/wiki"
@@ -43,6 +44,7 @@ type UnleashedEngine struct {
 	ProfileMgr   *memory.ProfileManager
 	SkillIndexer *skills.SkillIndexer
 	WikiEngine   *wiki.WikiEngine
+	LCMEngine    *lcm.LCMEngine
 	Tools        *ToolRunner
 	Reflection   *ReflectionEngine
 	Registry     *adapters.AdapterRegistry
@@ -67,6 +69,10 @@ func NewUnleashedEngine(cfg *config.AppConfig) (*UnleashedEngine, error) {
 	profileMgr := memory.NewProfileManager(store)
 	skillIndexer := skills.NewSkillIndexer(cfg.System.SkillsDir)
 	wikiEngine := wiki.NewWikiEngine(cfg.Wiki.WikiDir)
+	var lcmEngine *lcm.LCMEngine
+	if cfg.LCM.Enabled {
+		lcmEngine, _ = lcm.NewLCMEngine(cfg.LCM.DBPath)
+	}
 	toolRunner := NewToolRunner(cfg.System.WorkspaceDir, store)
 	refl := NewReflectionEngine(cfg.System.WorkspaceDir, cfg.System.SkillsDir, store)
 
@@ -89,6 +95,7 @@ func NewUnleashedEngine(cfg *config.AppConfig) (*UnleashedEngine, error) {
 		ProfileMgr:   profileMgr,
 		SkillIndexer: skillIndexer,
 		WikiEngine:   wikiEngine,
+		LCMEngine:    lcmEngine,
 		Tools:        toolRunner,
 		Reflection:   refl,
 		Registry:     reg,
@@ -160,6 +167,11 @@ func (e *UnleashedEngine) resolveAdapter() (adapters.CLIAdapter, string) {
 
 func (e *UnleashedEngine) Chat(ctx context.Context, sessionID, userMessage, channelName string, out chan<- Event) {
 	defer close(out)
+
+	// Lossless Context Management: Append user turn
+	if e.LCMEngine != nil && e.cfg.LCM.Enabled {
+		_, _ = e.LCMEngine.AppendMessage(sessionID, "user", userMessage)
+	}
 
 	var contextBlocks []string
 
@@ -271,6 +283,14 @@ func (e *UnleashedEngine) Chat(ctx context.Context, sessionID, userMessage, chan
 				topic = words[0]
 			}
 			_, _ = e.WikiEngine.AutoIngest(topic, userMessage, execResult.Response)
+		}
+	}
+
+	// 7. Lossless Context Management: Append assistant turn & auto-compress
+	if e.LCMEngine != nil && e.cfg.LCM.Enabled && execResult != nil && execResult.Response != "" {
+		_, _ = e.LCMEngine.AppendMessage(sessionID, "assistant", execResult.Response)
+		if e.cfg.LCM.AutoCompress {
+			_, _ = e.LCMEngine.CompressIfExceeds(sessionID, e.cfg.LCM.TokenThreshold)
 		}
 	}
 
