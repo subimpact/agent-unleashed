@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en" class="dark scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agent-Unleashed (agt-ul) — The Universal 24/7 Agent Gateway & Harness</title>
+  <meta name="description" content="Turn any AI CLI (Google Antigravity agy, Claude Code, Aider, Ollama) into a 24/7 autonomous bot with Palace-Mnemosyne cognitive memory, live context telemetry, and multi-channel gateways.">
+  <meta property="og:title" content="Agent-Unleashed (agt-ul) — Universal AI Agent Gateway">
+  <meta property="og:description" content="Single binary Go harness multiplexing local AI CLIs with cognitive memory palace, 24/7 Telegram/Discord gateways, and live context telemetry.">
+  <meta property="og:url" content="https://agent.subimpact.net">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚀</text></svg>">
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#ecfdf5',
+              100: '#d1fae5',
+              400: '#34d399',
+              500: '#10b981',
+              600: '#059669',
+              900: '#064e3b',
+              glow: '#00f0ff',
+              purple: '#a855f7',
+            },
+            dark: {
+              bg: '#08090c',
+              card: '#101218',
+              border: '#1f2430',
+              subtle: '#161922',
+            }
+          },
+          fontFamily: {
+            mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
+            sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #08090c;
+      color: #f3f4f6;
+    }
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .gradient-text {
+      background: linear-gradient(135deg, #34d399 0%, #00f0ff 50%, #a855f7 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .gradient-border {
+      position: relative;
+      border-radius: 1rem;
+      background: linear-gradient(135deg, rgba(52, 211, 153, 0.2), rgba(0, 240, 255, 0.1), rgba(168, 85, 247, 0.2));
+      padding: 1px;
+    }
+    .glow-glow {
+      box-shadow: 0 0 50px -10px rgba(0, 240, 255, 0.15);
+    }
+    .terminal-shadow {
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7), 0 0 30px rgba(16, 185, 129, 0.1);
+    }
+  </style>
+</head>
+<body class="selection:bg-brand-500 selection:text-black">
+
+  <!-- Glow Backgrounds -->
+  <div class="fixed top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[500px] bg-gradient-to-tr from-brand-500/10 via-cyan-500/10 to-purple-500/10 blur-[120px] pointer-events-none -z-10"></div>
+
+  <!-- Navigation -->
+  <nav class="sticky top-0 z-50 backdrop-blur-xl bg-dark-bg/80 border-b border-dark-border">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-9 h-9 rounded-lg bg-gradient-to-tr from-brand-500 to-cyan-400 flex items-center justify-center text-black font-black text-xl shadow-lg shadow-brand-500/20">
+          ⚡
+        </div>
+        <span class="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+          agent-unleashed <span class="text-xs px-2 py-0.5 rounded-full bg-brand-500/10 text-brand-400 border border-brand-500/20 font-mono">v1.2.0</span>
+        </span>
+      </div>
+      <div class="hidden md:flex items-center space-x-8 text-sm font-medium text-gray-300">
+        <a href="#features" class="hover:text-brand-400 transition-colors">Features</a>
+        <a href="#architecture" class="hover:text-brand-400 transition-colors">Architecture</a>
+        <a href="#matrix" class="hover:text-brand-400 transition-colors">Comparison</a>
+        <a href="#gateways" class="hover:text-brand-400 transition-colors">Gateways</a>
+        <a href="#quickstart" class="hover:text-brand-400 transition-colors">Quickstart</a>
+      </div>
+      <div class="flex items-center space-x-4">
+        <a href="https://github.com/subimpact/agent-unleashed" target="_blank" class="px-4 py-2 rounded-lg bg-dark-card hover:bg-dark-border border border-dark-border text-sm font-medium flex items-center gap-2 transition-all">
+          <i data-lucide="github" class="w-4 h-4"></i> GitHub
+        </a>
+        <a href="#quickstart" class="px-4 py-2 rounded-lg bg-gradient-to-r from-brand-500 to-cyan-500 hover:from-brand-400 hover:to-cyan-400 text-black font-semibold text-sm shadow-md shadow-brand-500/20 transition-all">
+          Install Now
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero Section -->
+  <section class="relative pt-20 pb-16 overflow-hidden">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+      <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-dark-card border border-dark-border text-xs text-gray-300 mb-8 animate-pulse">
+        <span class="w-2 h-2 rounded-full bg-brand-400"></span>
+        <span>Pure Go Single Binary &bull; Zero API Keys &bull; 24/7 Gateway</span>
+      </div>
+      
+      <h1 class="text-5xl sm:text-7xl font-extrabold tracking-tight max-w-5xl mx-auto leading-tight sm:leading-none">
+        The Universal <span class="gradient-text">24/7 Agent Operating System</span>
+      </h1>
+      
+      <p class="mt-6 text-lg sm:text-xl text-gray-400 max-w-3xl mx-auto leading-relaxed">
+        Multiplex across <strong class="text-white">Google Antigravity (<code class="text-brand-400">agy</code>)</strong>, <strong class="text-white">Claude Code</strong>, <strong class="text-white">Aider</strong>, and <strong class="text-white">Ollama</strong>. Backed by Palace-Mnemosyne cognitive memory, live context telemetry, and unattended cron automations.
+      </p>
+
+      <!-- Quick Install Box -->
+      <div class="mt-10 max-w-xl mx-auto">
+        <div class="relative flex items-center bg-dark-card border border-dark-border rounded-xl p-2 font-mono text-sm shadow-2xl">
+          <span class="text-brand-400 px-3 select-none">$</span>
+          <input type="text" readonly value="irm https://agent.subimpact.net/install.ps1 | iex" id="installCmd" class="bg-transparent border-none outline-none text-gray-200 flex-1 select-all text-xs sm:text-sm">
+          <button onclick="copyInstallCmd()" class="px-4 py-2 bg-brand-500/10 hover:bg-brand-500/20 text-brand-400 border border-brand-500/30 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all">
+            <i data-lucide="copy" class="w-3.5 h-3.5" id="copyIcon"></i>
+            <span id="copyText">Copy</span>
+          </button>
+        </div>
+        <p class="text-xs text-gray-500 mt-2">macOS / Linux: <code class="text-gray-400">curl -fsSL https://agent.subimpact.net/install.sh | bash</code></p>
+      </div>
+
+      <!-- Live Interactive Terminal Preview -->
+      <div class="mt-16 max-w-4xl mx-auto text-left">
+        <div class="rounded-2xl bg-dark-card border border-dark-border overflow-hidden terminal-shadow">
+          <!-- Terminal Header -->
+          <div class="px-4 py-3 bg-dark-subtle border-b border-dark-border flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+              <div class="w-3 h-3 rounded-full bg-red-500/80"></div>
+              <div class="w-3 h-3 rounded-full bg-yellow-500/80"></div>
+              <div class="w-3 h-3 rounded-full bg-green-500/80"></div>
+              <span class="ml-2 text-xs font-mono text-gray-400">agent-unleashed (agt-ul) — REPL</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="text-[11px] font-mono px-2 py-0.5 rounded bg-brand-500/10 text-brand-400 border border-brand-500/20">LIVE TELEMETRY</span>
+            </div>
+          </div>
+
+          <!-- Terminal Body -->
+          <div class="p-6 font-mono text-xs sm:text-sm space-y-3 bg-[#0a0c10] text-gray-300 min-h-[340px]">
+            <p class="text-gray-500">================================================================================</p>
+            <p class="text-brand-400 font-bold">  🚀 AGENT-UNLEASHED (agt-ul) Universal Agent Harness & Gateway</p>
+            <p class="text-gray-400">  Palace-Mnemosyne Memory | Multi-CLI Orchestration | Live Context Dashboard</p>
+            <p class="text-gray-500">================================================================================</p>
+            <p class="text-xs text-gray-400">Active Driver: [<span class="text-cyan-400 font-bold">agy</span>] | Type ':help' for commands, ':exit' to quit.</p>
+            
+            <div class="pt-2">
+              <p class="text-purple-400 font-semibold">👤 You [agy] &gt; <span class="text-gray-100">Refactor auth module to use SQLite session store and schedule daily cleanup at 3am.</span></p>
+            </div>
+
+            <div class="space-y-1.5 pl-2 border-l-2 border-brand-500/30 text-xs">
+              <p class="text-brand-400 flex items-center gap-2">
+                <i data-lucide="brain" class="w-3.5 h-3.5"></i>
+                <span>[🏛️ Recalled 2 memories from Palace into context]</span>
+              </p>
+              <p class="text-gray-400 pl-4">&bull; [preferences:fact] User prefers modernc.org/sqlite without CGO dependencies.</p>
+              <p class="text-cyan-400">[Routing task to driver: Google Antigravity CLI (agy)...]</p>
+            </div>
+
+            <div class="bg-dark-card/60 rounded p-3 border border-dark-border text-xs text-gray-200">
+              <p class="text-green-400 font-bold">🤖 Agent &gt;</p>
+              <p class="mt-1">I have refactored the auth module to use pure Go SQLite sessions. I have also scheduled the daily cleanup task with cron schedule <code class="text-brand-300">0 3 * * *</code>.</p>
+              <p class="text-purple-400 mt-2 text-[11px]">[✨ Self-Learning: Recorded preference 'SQLite session store' in Room:preferences]</p>
+            </div>
+
+            <!-- Bottom Console Telemetry Bar -->
+            <div class="pt-2">
+              <div class="p-2.5 rounded bg-dark-subtle border border-cyan-500/30 text-[11px] text-cyan-300 flex flex-wrap items-center justify-between gap-2 shadow-inner">
+                <div class="flex items-center gap-3">
+                  <span class="font-bold text-white flex items-center gap-1.5"><i data-lucide="activity" class="w-3.5 h-3.5 text-brand-400"></i> Context: 17,528 / 1,048,576 tok (98.3% left)</span>
+                  <span class="text-gray-400">&bull; In: 17,466 &bull; Out: 62 &bull; Think: 54</span>
+                </div>
+                <div class="flex items-center gap-3">
+                  <span class="text-yellow-400">⏱️ Latency: 3.07s</span>
+                  <span class="px-1.5 py-0.5 rounded bg-brand-500/20 text-brand-300 font-bold">Driver: agy</span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Core Pillars / Features -->
+  <section id="features" class="py-20 border-t border-dark-border bg-dark-bg">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center max-w-3xl mx-auto mb-16">
+        <h2 class="text-xs font-mono uppercase tracking-widest text-brand-400 mb-2">Engineered for Autonomous Power</h2>
+        <h3 class="text-3xl sm:text-4xl font-extrabold text-white">Why Agent-Unleashed Outperforms</h3>
+        <p class="mt-3 text-gray-400">Built in pure Go with zero Python bloat, instant cold start, and complete independence from paid API keys.</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <!-- Feature 1 -->
+        <div class="gradient-border">
+          <div class="h-full bg-dark-card rounded-[15px] p-8 flex flex-col justify-between">
+            <div>
+              <div class="w-12 h-12 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center text-brand-400 mb-6">
+                <i data-lucide="cpu" class="w-6 h-6"></i>
+              </div>
+              <h4 class="text-xl font-bold text-white mb-2">Universal CLI Adapters</h4>
+              <p class="text-gray-400 text-sm leading-relaxed">
+                Connects directly to your local authenticated CLI tools (Google Antigravity, Claude Code, Aider, Ollama). Zero third-party API key billing required.
+              </p>
+            </div>
+            <div class="mt-6 pt-4 border-t border-dark-border text-xs font-mono text-brand-400">
+              :driver claude &bull; :driver agy &bull; :driver ollama
+            </div>
+          </div>
+        </div>
+
+        <!-- Feature 2 -->
+        <div class="gradient-border">
+          <div class="h-full bg-dark-card rounded-[15px] p-8 flex flex-col justify-between">
+            <div>
+              <div class="w-12 h-12 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 mb-6">
+                <i data-lucide="database" class="w-6 h-6"></i>
+              </div>
+              <h4 class="text-xl font-bold text-white mb-2">Palace-Mnemosyne Memory</h4>
+              <p class="text-gray-400 text-sm leading-relaxed">
+                Spatial hierarchy (Wings &rarr; Rooms &rarr; Drawers) blended with mathematical Ebbinghaus cognitive decay (<code class="text-cyan-300">R = e^-&lambda;t</code>) and SQLite FTS5 vector hybrid RAG.
+              </p>
+            </div>
+            <div class="mt-6 pt-4 border-t border-dark-border text-xs font-mono text-cyan-400">
+              Spaced Repetition &bull; Room Scoping &bull; Zero Drift
+            </div>
+          </div>
+        </div>
+
+        <!-- Feature 3 -->
+        <div class="gradient-border">
+          <div class="h-full bg-dark-card rounded-[15px] p-8 flex flex-col justify-between">
+            <div>
+              <div class="w-12 h-12 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 mb-6">
+                <i data-lucide="clock" class="w-6 h-6"></i>
+              </div>
+              <h4 class="text-xl font-bold text-white mb-2">24/7 Autonomous Cron</h4>
+              <p class="text-gray-400 text-sm leading-relaxed">
+                In-process background cron scheduler. Schedule recurring agent tasks that run unattended and dispatch summaries to Telegram, Discord, or WebSockets.
+              </p>
+            </div>
+            <div class="mt-6 pt-4 border-t border-dark-border text-xs font-mono text-purple-400">
+              :cron add "0 9 * * *" "Daily Git Audit"
+            </div>
+          </div>
+        </div>
+
+        <!-- Feature 4 -->
+        <div class="gradient-border">
+          <div class="h-full bg-dark-card rounded-[15px] p-8 flex flex-col justify-between">
+            <div>
+              <div class="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 mb-6">
+                <i data-lucide="gauge" class="w-6 h-6"></i>
+              </div>
+              <h4 class="text-xl font-bold text-white mb-2">Live Context & Telemetry</h4>
+              <p class="text-gray-400 text-sm leading-relaxed">
+                Real-time bottom console bar and ASCII gauge visualizer (<code class="text-emerald-300">:context</code>). Track input tokens, thinking tokens, cache read rates, and latency per turn.
+              </p>
+            </div>
+            <div class="mt-6 pt-4 border-t border-dark-border text-xs font-mono text-emerald-400">
+              :context &bull; :verbose &bull; :stats
+            </div>
+          </div>
+        </div>
+
+        <!-- Feature 5 -->
+        <div class="gradient-border">
+          <div class="h-full bg-dark-card rounded-[15px] p-8 flex flex-col justify-between">
+            <div>
+              <div class="w-12 h-12 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 mb-6">
+                <i data-lucide="stethoscope" class="w-6 h-6"></i>
+              </div>
+              <h4 class="text-xl font-bold text-white mb-2">System Doctor & Self-Healing</h4>
+              <p class="text-gray-400 text-sm leading-relaxed">
+                One-command health diagnostics (<code class="text-blue-300">agt-ul doctor</code>) and auto-remediation (<code class="text-blue-300">agt-ul doctor --fix</code>). Self-updates seamlessly with <code class="text-blue-300">agt-ul update</code>.
+              </p>
+            </div>
+            <div class="mt-6 pt-4 border-t border-dark-border text-xs font-mono text-blue-400">
+              10-Point Subsystem Health &bull; Auto-Repair
+            </div>
+          </div>
+        </div>
+
+        <!-- Feature 6 -->
+        <div class="gradient-border">
+          <div class="h-full bg-dark-card rounded-[15px] p-8 flex flex-col justify-between">
+            <div>
+              <div class="w-12 h-12 rounded-xl bg-pink-500/10 border border-pink-500/20 flex items-center justify-center text-pink-400 mb-6">
+                <i data-lucide="radio" class="w-6 h-6"></i>
+              </div>
+              <h4 class="text-xl font-bold text-white mb-2">Multi-Channel Gateways</h4>
+              <p class="text-gray-400 text-sm leading-relaxed">
+                Real-time WebSocket streaming (<code class="text-pink-300">ws://localhost:8080/ws</code>), Telegram Bot with inline approval buttons, Discord DM pair programming, and REST APIs.
+              </p>
+            </div>
+            <div class="mt-6 pt-4 border-t border-dark-border text-xs font-mono text-pink-400">
+              Telegram &bull; Discord &bull; WebSocket &bull; REST
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Comparison Matrix -->
+  <section id="matrix" class="py-20 border-t border-dark-border bg-dark-subtle/50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center max-w-3xl mx-auto mb-16">
+        <h2 class="text-xs font-mono uppercase tracking-widest text-cyan-400 mb-2">Competitive Benchmarks</h2>
+        <h3 class="text-3xl sm:text-4xl font-extrabold text-white">How Agent-Unleashed Compares</h3>
+      </div>
+
+      <div class="overflow-x-auto rounded-xl border border-dark-border bg-dark-card">
+        <table class="w-full text-left text-sm text-gray-300">
+          <thead class="bg-dark-subtle text-xs uppercase font-mono text-gray-400 border-b border-dark-border">
+            <tr>
+              <th scope="col" class="px-6 py-4">Feature / Dimension</th>
+              <th scope="col" class="px-6 py-4 text-brand-400 font-bold">⚡ Agent-Unleashed</th>
+              <th scope="col" class="px-6 py-4 text-gray-300">🌐 OpenClaw</th>
+              <th scope="col" class="px-6 py-4 text-gray-300">🧠 Hermes Agent</th>
+              <th scope="col" class="px-6 py-4 text-gray-300">🤖 Aider</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-dark-border text-xs sm:text-sm">
+            <tr class="hover:bg-dark-subtle/30">
+              <td class="px-6 py-4 font-semibold text-white">Core Language & Footprint</td>
+              <td class="px-6 py-4 text-brand-400 font-bold">Pure Go (&lt;15MB RAM, &lt;10ms boot)</td>
+              <td class="px-6 py-4 text-gray-400">Node.js (~150MB)</td>
+              <td class="px-6 py-4 text-gray-400">Python (~200MB)</td>
+              <td class="px-6 py-4 text-gray-400">Python (~180MB)</td>
+            </tr>
+            <tr class="hover:bg-dark-subtle/30">
+              <td class="px-6 py-4 font-semibold text-white">Zero-API-Key Local CLI Multiplexing</td>
+              <td class="px-6 py-4 text-brand-400 font-bold">✅ agy, claude, aider, ollama</td>
+              <td class="px-6 py-4 text-red-400">❌ Cloud API Keys Only</td>
+              <td class="px-6 py-4 text-red-400">❌ API / Local vLLM only</td>
+              <td class="px-6 py-4 text-yellow-400">⚠️ Single-CLI only</td>
+            </tr>
+            <tr class="hover:bg-dark-subtle/30">
+              <td class="px-6 py-4 font-semibold text-white">Cognitive Long-Term Memory</td>
+              <td class="px-6 py-4 text-brand-400 font-bold">✅ Palace-Mnemosyne + Loci + Decay</td>
+              <td class="px-6 py-4 text-gray-400">Basic Vector Store</td>
+              <td class="px-6 py-4 text-green-400">✅ Honcho Dialectic</td>
+              <td class="px-6 py-4 text-red-400">❌ Git Session only</td>
+            </tr>
+            <tr class="hover:bg-dark-subtle/30">
+              <td class="px-6 py-4 font-semibold text-white">Live Context Window Bar &amp; Meter</td>
+              <td class="px-6 py-4 text-brand-400 font-bold">✅ Live Console Bar + :context Meter</td>
+              <td class="px-6 py-4 text-red-400">❌ None</td>
+              <td class="px-6 py-4 text-red-400">❌ CLI logs only</td>
+              <td class="px-6 py-4 text-gray-400">Basic cost summary</td>
+            </tr>
+            <tr class="hover:bg-dark-subtle/30">
+              <td class="px-6 py-4 font-semibold text-white">In-Process 24/7 Cron Engine</td>
+              <td class="px-6 py-4 text-brand-400 font-bold">✅ SQLite-Backed 5-Part Cron</td>
+              <td class="px-6 py-4 text-green-400">✅ External cron</td>
+              <td class="px-6 py-4 text-green-400">✅ Agent cron</td>
+              <td class="px-6 py-4 text-red-400">❌ Interactive only</td>
+            </tr>
+            <tr class="hover:bg-dark-subtle/30">
+              <td class="px-6 py-4 font-semibold text-white">System Diagnostics &amp; Self-Repair</td>
+              <td class="px-6 py-4 text-brand-400 font-bold">✅ agt-ul doctor &amp; agt-ul update</td>
+              <td class="px-6 py-4 text-gray-400">Basic status</td>
+              <td class="px-6 py-4 text-green-400">✅ hermes doctor</td>
+              <td class="px-6 py-4 text-red-400">❌ None</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- Quickstart / Installation -->
+  <section id="quickstart" class="py-20 border-t border-dark-border bg-dark-bg">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center mb-12">
+        <h2 class="text-xs font-mono uppercase tracking-widest text-brand-400 mb-2">Get Started in 10 Seconds</h2>
+        <h3 class="text-3xl sm:text-4xl font-extrabold text-white">Installation &amp; Commands</h3>
+      </div>
+
+      <div class="space-y-6">
+        <!-- Step 1 -->
+        <div class="bg-dark-card border border-dark-border rounded-xl p-6">
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-xs font-bold font-mono px-2.5 py-1 rounded bg-brand-500/10 text-brand-400 border border-brand-500/20">STEP 1: INSTALL GLOBALLY</span>
+            <span class="text-xs text-gray-400">Windows / macOS / Linux</span>
+          </div>
+          <div class="bg-dark-subtle p-3.5 rounded-lg font-mono text-xs text-gray-200 overflow-x-auto">
+            # Windows PowerShell (Run as User):<br>
+            <span class="text-brand-300">irm https://agent.subimpact.net/install.ps1 | iex</span><br><br>
+            # macOS / Linux / Termux:<br>
+            <span class="text-brand-300">curl -fsSL https://agent.subimpact.net/install.sh | bash</span>
+          </div>
+        </div>
+
+        <!-- Step 2 -->
+        <div class="bg-dark-card border border-dark-border rounded-xl p-6">
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-xs font-bold font-mono px-2.5 py-1 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">STEP 2: RUN INTERACTIVE WIZARD</span>
+            <span class="text-xs text-gray-400">Auto-detects installed AI tools</span>
+          </div>
+          <div class="bg-dark-subtle p-3.5 rounded-lg font-mono text-xs text-gray-200 overflow-x-auto">
+            <span class="text-cyan-300">agt-ul setup</span>
+          </div>
+        </div>
+
+        <!-- Step 3 -->
+        <div class="bg-dark-card border border-dark-border rounded-xl p-6">
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-xs font-bold font-mono px-2.5 py-1 rounded bg-purple-500/10 text-purple-400 border border-purple-500/20">STEP 3: LAUNCH THE REPL &amp; 24/7 DAEMON</span>
+            <span class="text-xs text-gray-400">Interactive Pair Programming</span>
+          </div>
+          <div class="bg-dark-subtle p-3.5 rounded-lg font-mono text-xs text-gray-200 overflow-x-auto">
+            <span class="text-purple-300">agt-ul</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;# Launch interactive REPL &amp; daemon<br>
+            <span class="text-purple-300">agt-ul -v</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;# Launch in Verbose debug mode<br>
+            <span class="text-purple-300">agt-ul doctor</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;# Run full health diagnostics<br>
+            <span class="text-purple-300">agt-ul update</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;# Self-update &amp; recompile to latest version
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="border-t border-dark-border py-12 bg-dark-subtle">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div class="flex items-center space-x-2">
+        <span class="text-lg font-bold text-white">Agent-Unleashed</span>
+        <span class="text-xs text-gray-500">&bull; MIT Licensed &bull; subimpact.net</span>
+      </div>
+      <div class="text-xs text-gray-400">
+        Engineered with Google Antigravity &amp; Pure Go.
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    lucide.createIcons();
+    function copyInstallCmd() {
+      const cmd = document.getElementById('installCmd').value;
+      navigator.clipboard.writeText(cmd);
+      document.getElementById('copyText').innerText = 'Copied!';
+      setTimeout(() => {
+        document.getElementById('copyText').innerText = 'Copy';
+      }, 2000);
+    }
+  </script>
+</body>
+</html>

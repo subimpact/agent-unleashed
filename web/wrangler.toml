@@ -1,0 +1,10 @@
+name = "agent-unleashed"
+compatibility_date = "2024-01-01"
+pages_build_output_dir = "."
+
+[site]
+bucket = "."
+
+# Custom Domain Configuration: agent.subimpact.net
+# Cloudflare Pages Custom Domains are configured on your Cloudflare dashboard
+# or via wrangler pages project domain add.
