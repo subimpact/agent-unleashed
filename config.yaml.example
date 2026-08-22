@@ -1,0 +1,58 @@
+# ==============================================================================
+# Antigravity-Unleashed Configuration
+# Autonomous 24/7 Agent Daemon & Multi-Channel Gateway for Antigravity
+# ==============================================================================
+
+system:
+  agent_name: "Antigravity-Unleashed"
+  workspace_dir: "."
+  data_dir: "./data"
+  skills_dir: "./.agents/skills"
+  log_level: "INFO"
+
+# LLM Backend Configuration
+model:
+  provider: "gemini"               # Options: 'gemini', 'openrouter', 'openai', 'ollama'
+  model_name: "gemini-2.5-pro"     # Default model
+  api_key: "${GEMINI_API_KEY}"    # Can use env var or string
+  temperature: 0.2
+  max_output_tokens: 8192
+
+# Long-Term Persistent Memory (Semantic Vector + SQLite)
+memory:
+  enabled: true
+  db_path: "./data/memory.sqlite"
+  vector_dimension: 384            # Embedding dimensions
+  similarity_threshold: 0.65       # Minimum cosine similarity to inject into context
+  max_context_memories: 5          # Number of top memories injected per prompt
+  auto_ingest_conversations: true
+
+# Autonomous Self-Reflection & Skill Learning
+reflection:
+  enabled: true
+  auto_generate_skills: true       # Autonomously write new SKILL.md when reusable patterns are detected
+  auto_extract_facts: true         # Extract user preferences and lessons to vector memory
+  min_tool_steps_for_reflection: 2 # Minimum steps in a task to trigger self-reflection
+
+# Messaging Gateways (Enable the channels you want to run 24/7)
+gateways:
+  cli:
+    enabled: true
+
+  telegram:
+    enabled: false
+    bot_token: "${TELEGRAM_BOT_TOKEN}"
+    allowed_chat_ids: []           # Empty allows all, or list specific Telegram Chat IDs: [123456789]
+    admin_chat_id: null            # Receives critical alerts and background notifications
+
+  discord:
+    enabled: false
+    bot_token: "${DISCORD_BOT_TOKEN}"
+    guild_ids: []
+    allowed_channel_ids: []
+
+  rest_api:
+    enabled: true
+    host: "0.0.0.0"
+    port: 8080
+    webhook_secret: "${WEBHOOK_SECRET}"

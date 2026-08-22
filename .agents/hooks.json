@@ -1,0 +1,22 @@
+{
+  "unleashed-memory-injector": {
+    "enabled": true,
+    "PreInvocation": [
+      {
+        "type": "command",
+        "command": "python ./scripts/hook_memory_inject.py",
+        "timeout": 10
+      }
+    ]
+  },
+  "unleashed-stop-reflection": {
+    "enabled": true,
+    "Stop": [
+      {
+        "type": "command",
+        "command": "python ./scripts/hook_stop_reflect.py",
+        "timeout": 10
+      }
+    ]
+  }
+}
