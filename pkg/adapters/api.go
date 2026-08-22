@@ -39,8 +39,14 @@ func (a *APIAdapter) Capabilities() []string {
 	return []string{"openrouter", "gemini_2_5_pro", "claude_3_7_sonnet", "deepseek_r1", "gpt_4o"}
 }
 
-func (a *APIAdapter) Execute(ctx context.Context, prompt string, sessionID string, workspaceDir string, options map[string]string) (string, error) {
+func (a *APIAdapter) Execute(ctx context.Context, prompt string, sessionID string, workspaceDir string, options map[string]string) (*ExecutionResult, error) {
 	client := &http.Client{Timeout: 90 * time.Second}
+	start := time.Now()
+
+	result := &ExecutionResult{
+		ContextLimit: 128000,
+		InputTokens:  len(prompt) / 4,
+	}
 
 	// 1. OpenRouter
 	if a.cfg.OpenRouterAPIKey != "" {
@@ -48,6 +54,8 @@ func (a *APIAdapter) Execute(ctx context.Context, prompt string, sessionID strin
 		if a.cfg.ModelName != "" && a.cfg.ModelName != "auto" {
 			model = a.cfg.ModelName
 		}
+		result.RawCommand = fmt.Sprintf("POST https://openrouter.ai/api/v1/chat/completions (model: %s)", model)
+
 		reqBody, _ := json.Marshal(map[string]interface{}{
 			"model": model,
 			"messages": []map[string]string{
@@ -59,6 +67,8 @@ func (a *APIAdapter) Execute(ctx context.Context, prompt string, sessionID strin
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := client.Do(req)
+		result.DurationSeconds = time.Since(start).Seconds()
+
 		if err == nil && resp.StatusCode == 200 {
 			defer resp.Body.Close()
 			var data struct {
@@ -67,9 +77,18 @@ func (a *APIAdapter) Execute(ctx context.Context, prompt string, sessionID strin
 						Content string `json:"content"`
 					} `json:"message"`
 				} `json:"choices"`
+				Usage struct {
+					PromptTokens int `json:"prompt_tokens"`
+					ComplTokens  int `json:"completion_tokens"`
+					TotalTokens  int `json:"total_tokens"`
+				} `json:"usage"`
 			}
 			if err := json.NewDecoder(resp.Body).Decode(&data); err == nil && len(data.Choices) > 0 {
-				return data.Choices[0].Message.Content, nil
+				result.Response = data.Choices[0].Message.Content
+				result.InputTokens = data.Usage.PromptTokens
+				result.OutputTokens = data.Usage.ComplTokens
+				result.TotalTokens = data.Usage.TotalTokens
+				return result, nil
 			}
 		}
 	}
@@ -77,6 +96,8 @@ func (a *APIAdapter) Execute(ctx context.Context, prompt string, sessionID strin
 	// 2. Google Gemini API
 	if a.cfg.GeminiAPIKey != "" {
 		url := fmt.Sprintf("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=%s", a.cfg.GeminiAPIKey)
+		result.RawCommand = "POST https://generativelanguage.googleapis.com (model: gemini-2.0-flash)"
+
 		reqBody, _ := json.Marshal(map[string]interface{}{
 			"contents": []map[string]interface{}{
 				{"parts": []map[string]string{{"text": prompt}}},
@@ -86,6 +107,8 @@ func (a *APIAdapter) Execute(ctx context.Context, prompt string, sessionID strin
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := client.Do(req)
+		result.DurationSeconds = time.Since(start).Seconds()
+
 		if err == nil && resp.StatusCode == 200 {
 			defer resp.Body.Close()
 			var data struct {
@@ -96,12 +119,22 @@ func (a *APIAdapter) Execute(ctx context.Context, prompt string, sessionID strin
 						} `json:"parts"`
 					} `json:"content"`
 				} `json:"candidates"`
+				UsageMetadata struct {
+					PromptTokenCount     int `json:"promptTokenCount"`
+					CandidatesTokenCount int `json:"candidatesTokenCount"`
+					TotalTokenCount      int `json:"totalTokenCount"`
+				} `json:"usageMetadata"`
 			}
 			if err := json.NewDecoder(resp.Body).Decode(&data); err == nil && len(data.Candidates) > 0 && len(data.Candidates[0].Content.Parts) > 0 {
-				return data.Candidates[0].Content.Parts[0].Text, nil
+				result.Response = data.Candidates[0].Content.Parts[0].Text
+				result.InputTokens = data.UsageMetadata.PromptTokenCount
+				result.OutputTokens = data.UsageMetadata.CandidatesTokenCount
+				result.TotalTokens = data.UsageMetadata.TotalTokenCount
+				result.ContextLimit = 1048576 // 1M tokens
+				return result, nil
 			}
 		}
 	}
 
-	return "", fmt.Errorf("no valid cloud API key responded or configured")
+	return result, fmt.Errorf("no valid cloud API key responded or configured")
 }

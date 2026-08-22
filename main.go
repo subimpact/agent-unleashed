@@ -54,6 +54,14 @@ func main() {
 		}
 	}
 
+	// Flag parsing for default run
+	verboseFlag := false
+	for _, arg := range os.Args[1:] {
+		if arg == "-v" || arg == "--verbose" {
+			verboseFlag = true
+		}
+	}
+
 	// Default: Run Master Daemon & Interactive REPL
 	cfg, err := config.LoadConfig(configPath)
 	if err != nil {
@@ -64,6 +72,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("❌ Failed to initialize engine: %v", err)
 	}
+	eng.SetVerbose(verboseFlag)
 	if eng.MemoryStore != nil {
 		defer eng.MemoryStore.Close()
 	}

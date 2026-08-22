@@ -6,12 +6,26 @@ import (
 	"sync"
 )
 
+type ExecutionResult struct {
+	Response        string                 `json:"response"`
+	InputTokens     int                    `json:"input_tokens"`
+	OutputTokens    int                    `json:"output_tokens"`
+	ThinkingTokens  int                    `json:"thinking_tokens"`
+	CacheReadTokens int                    `json:"cache_read_tokens"`
+	TotalTokens     int                    `json:"total_tokens"`
+	DurationSeconds float64                `json:"duration_seconds"`
+	NumTurns        int                    `json:"num_turns"`
+	RawCommand      string                 `json:"raw_command,omitempty"`
+	RawOutput       string                 `json:"raw_output,omitempty"`
+	ContextLimit    int                    `json:"context_limit"` // e.g. 1,000,000 or 200,000
+}
+
 type CLIAdapter interface {
 	Name() string
 	DisplayName() string
 	Detect() bool
 	BinaryPath() string
-	Execute(ctx context.Context, prompt string, sessionID string, workspaceDir string, options map[string]string) (string, error)
+	Execute(ctx context.Context, prompt string, sessionID string, workspaceDir string, options map[string]string) (*ExecutionResult, error)
 	Capabilities() []string
 }
 

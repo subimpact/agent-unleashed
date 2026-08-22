@@ -20,17 +20,19 @@ const (
 	EventToolResult EventType = "tool_result"
 	EventText       EventType = "text"
 	EventInsight    EventType = "reflection_insight"
+	EventUsage      EventType = "usage_stats"
 )
 
 type Event struct {
-	Type     EventType   `json:"type"`
-	Content  string      `json:"content,omitempty"`
-	Count    int         `json:"count,omitempty"`
-	Memories []string    `json:"memories,omitempty"`
-	ToolName string      `json:"tool_name,omitempty"`
-	Args     interface{} `json:"args,omitempty"`
-	Result   interface{} `json:"result,omitempty"`
-	Insights []string    `json:"insights,omitempty"`
+	Type     EventType                 `json:"type"`
+	Content  string                    `json:"content,omitempty"`
+	Count    int                       `json:"count,omitempty"`
+	Memories []string                  `json:"memories,omitempty"`
+	ToolName string                    `json:"tool_name,omitempty"`
+	Args     interface{}               `json:"args,omitempty"`
+	Result   interface{}               `json:"result,omitempty"`
+	Insights []string                  `json:"insights,omitempty"`
+	Stats    *adapters.ExecutionResult `json:"stats,omitempty"`
 }
 
 type UnleashedEngine struct {
@@ -40,6 +42,9 @@ type UnleashedEngine struct {
 	Reflection   *ReflectionEngine
 	Registry     *adapters.AdapterRegistry
 	activeDriver string
+	verbose      bool
+	lastResult   *adapters.ExecutionResult
+	totalTokens  int
 	mu           sync.RWMutex
 }
 
@@ -76,6 +81,7 @@ func NewUnleashedEngine(cfg *config.AppConfig) (*UnleashedEngine, error) {
 		Reflection:   refl,
 		Registry:     reg,
 		activeDriver: driver,
+		verbose:      false,
 	}, nil
 }
 
@@ -89,6 +95,30 @@ func (e *UnleashedEngine) GetActiveDriverName() string {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 	return e.activeDriver
+}
+
+func (e *UnleashedEngine) SetVerbose(v bool) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.verbose = v
+}
+
+func (e *UnleashedEngine) IsVerbose() bool {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	return e.verbose
+}
+
+func (e *UnleashedEngine) GetLastResult() *adapters.ExecutionResult {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	return e.lastResult
+}
+
+func (e *UnleashedEngine) GetTotalTokens() int {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	return e.totalTokens
 }
 
 func (e *UnleashedEngine) resolveAdapter() (adapters.CLIAdapter, string) {
@@ -133,7 +163,7 @@ func (e *UnleashedEngine) Chat(ctx context.Context, sessionID, userMessage, chan
 			var lines []string
 			for _, m := range memories {
 				memStrings = append(memStrings, m.Content)
-				lines = append(lines, fmt.Sprintf("- [%s:%s] %s (relevance: %.2f)", m.Room, m.Hall, m.Content, m.Similarity))
+				lines = append(lines, fmt.Sprintf("- [%s:%s] %s (relevance: %.2f, decay: %.2f)", m.Room, m.Hall, m.Content, m.Similarity, m.DecayFactor))
 			}
 			out <- Event{
 				Type:     EventMemory,
@@ -166,20 +196,38 @@ func (e *UnleashedEngine) Chat(ctx context.Context, sessionID, userMessage, chan
 		"model":  e.cfg.Model.ModelName,
 	}
 
-	respText, err := adapter.Execute(ctx, augmentedPrompt, sessionID, e.cfg.System.WorkspaceDir, options)
+	execResult, err := adapter.Execute(ctx, augmentedPrompt, sessionID, e.cfg.System.WorkspaceDir, options)
+
+	e.mu.Lock()
+	e.lastResult = execResult
+	if execResult != nil {
+		e.totalTokens += execResult.TotalTokens
+	}
+	e.mu.Unlock()
+
 	if err != nil {
 		out <- Event{
 			Type:    EventText,
 			Content: fmt.Sprintf("⚠️ Driver execution error: %v", err),
+			Stats:   execResult,
 		}
 		return
 	}
 
-	out <- Event{Type: EventText, Content: respText}
+	out <- Event{
+		Type:    EventText,
+		Content: execResult.Response,
+		Stats:   execResult,
+	}
+
+	out <- Event{
+		Type:  EventUsage,
+		Stats: execResult,
+	}
 
 	// 3. Post-Task Reflection & Self-Evolution
 	if e.cfg.Reflection.Enabled && e.Reflection != nil {
-		insights := e.Reflection.Reflect(sessionID, userMessage, respText, nil)
+		insights := e.Reflection.Reflect(sessionID, userMessage, execResult.Response, nil)
 		if len(insights) > 0 {
 			out <- Event{
 				Type:     EventInsight,

@@ -6,6 +6,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
+	"time"
 )
 
 type AiderAdapter struct {
@@ -50,7 +52,7 @@ func (a *AiderAdapter) Capabilities() []string {
 	return []string{"git_diffs", "repo_mapping", "multi_model", "zero_api_key"}
 }
 
-func (a *AiderAdapter) Execute(ctx context.Context, prompt string, sessionID string, workspaceDir string, options map[string]string) (string, error) {
+func (a *AiderAdapter) Execute(ctx context.Context, prompt string, sessionID string, workspaceDir string, options map[string]string) (*ExecutionResult, error) {
 	bin := a.BinaryPath()
 
 	args := []string{
@@ -59,15 +61,29 @@ func (a *AiderAdapter) Execute(ctx context.Context, prompt string, sessionID str
 		"--yes",
 	}
 
+	start := time.Now()
 	cmd := exec.CommandContext(ctx, bin, args...)
 	if workspaceDir != "" {
 		cmd.Dir = workspaceDir
 	}
 
 	out, err := cmd.CombinedOutput()
-	if err != nil {
-		return "", fmt.Errorf("aider CLI execution failed (%v): %s", err, string(out))
+	duration := time.Since(start).Seconds()
+
+	result := &ExecutionResult{
+		ContextLimit:    128000,
+		DurationSeconds: duration,
+		Response:        string(out),
+		RawCommand:      fmt.Sprintf("%s %s", bin, strings.Join(args, " ")),
+		RawOutput:       string(out),
+		InputTokens:     len(prompt) / 4,
+		OutputTokens:    len(out) / 4,
+		TotalTokens:     (len(prompt) + len(out)) / 4,
 	}
 
-	return string(out), nil
+	if err != nil {
+		return result, fmt.Errorf("aider CLI execution failed (%v): %s", err, string(out))
+	}
+
+	return result, nil
 }

@@ -6,6 +6,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
+	"time"
 )
 
 type ClaudeAdapter struct {
@@ -50,7 +52,7 @@ func (c *ClaudeAdapter) Capabilities() []string {
 	return []string{"claude_3_7_sonnet", "terminal_tools", "codebase_edits", "zero_api_key"}
 }
 
-func (c *ClaudeAdapter) Execute(ctx context.Context, prompt string, sessionID string, workspaceDir string, options map[string]string) (string, error) {
+func (c *ClaudeAdapter) Execute(ctx context.Context, prompt string, sessionID string, workspaceDir string, options map[string]string) (*ExecutionResult, error) {
 	bin := c.BinaryPath()
 
 	args := []string{
@@ -58,15 +60,29 @@ func (c *ClaudeAdapter) Execute(ctx context.Context, prompt string, sessionID st
 		"--dangerously-skip-permissions",
 	}
 
+	start := time.Now()
 	cmd := exec.CommandContext(ctx, bin, args...)
 	if workspaceDir != "" {
 		cmd.Dir = workspaceDir
 	}
 
 	out, err := cmd.CombinedOutput()
-	if err != nil {
-		return "", fmt.Errorf("claude CLI execution failed (%v): %s", err, string(out))
+	duration := time.Since(start).Seconds()
+
+	result := &ExecutionResult{
+		ContextLimit:    200000, // 200k for Claude 3.7
+		DurationSeconds: duration,
+		Response:        string(out),
+		RawCommand:      fmt.Sprintf("%s %s", bin, strings.Join(args, " ")),
+		RawOutput:       string(out),
+		InputTokens:     len(prompt) / 4,
+		OutputTokens:    len(out) / 4,
+		TotalTokens:     (len(prompt) + len(out)) / 4,
 	}
 
-	return string(out), nil
+	if err != nil {
+		return result, fmt.Errorf("claude CLI execution failed (%v): %s", err, string(out))
+	}
+
+	return result, nil
 }
