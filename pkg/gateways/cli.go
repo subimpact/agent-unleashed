@@ -11,6 +11,7 @@ import (
 	"agent-unleashed/pkg/cron"
 	"agent-unleashed/pkg/doctor"
 	"agent-unleashed/pkg/engine"
+	"agent-unleashed/pkg/updater"
 )
 
 type CLIGateway struct {
@@ -82,6 +83,14 @@ func (c *CLIGateway) Start(ctx context.Context) error {
 				fmt.Println("🔇 Verbose Mode: [DISABLED]")
 			}
 			fmt.Println()
+			continue
+		}
+
+		if lower == ":update" || lower == ":upgrade" {
+			_, err := updater.RunUpdate(".", false)
+			if err != nil {
+				fmt.Printf("❌ Update failed: %v\n\n", err)
+			}
 			continue
 		}
 
@@ -367,6 +376,7 @@ func (c *CLIGateway) handleCronCommand(input string) {
 func (c *CLIGateway) printHelp() {
 	fmt.Println("\n📖 Available Commands:")
 	fmt.Println("  :doctor         - Run system health check & diagnostics")
+	fmt.Println("  :update         - Self-update and recompile binary from source")
 	fmt.Println("  :context        - Visual context window gauge & token breakdown")
 	fmt.Println("  :verbose        - Toggle verbose mode on/off (detailed commands & debug)")
 	fmt.Println("  :profile        - View & manage dialectic user persona & coding profile")

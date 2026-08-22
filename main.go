@@ -17,6 +17,7 @@ import (
 	"agent-unleashed/pkg/doctor"
 	"agent-unleashed/pkg/engine"
 	"agent-unleashed/pkg/gateways"
+	"agent-unleashed/pkg/updater"
 	"agent-unleashed/pkg/wizard"
 )
 
@@ -33,6 +34,18 @@ func main() {
 				log.Fatalf("Setup failed: %v", err)
 			}
 			return
+
+		case "update", "upgrade":
+			if _, err := updater.RunUpdate(".", false); err != nil {
+				log.Fatalf("Update failed: %v", err)
+			}
+			return
+
+		case "version", "-v", "--version":
+			if len(os.Args) == 2 {
+				fmt.Printf("Agent-Unleashed (agt-ul) v%s\n", updater.GetVersion())
+				return
+			}
 
 		case "doctor":
 			autoFix := false
@@ -172,16 +185,18 @@ func main() {
 }
 
 func printHelp() {
-	fmt.Println("Agent-Unleashed (agt-ul) - Universal Go Agent Harness & Gateway")
+	fmt.Printf("Agent-Unleashed (agt-ul) v%s - Universal Go Agent Harness & Gateway\n", updater.GetVersion())
 	fmt.Println("\nUsage:")
 	fmt.Println("  agt-ul               Start interactive REPL & 24/7 daemon")
 	fmt.Println("  agt-ul -v            Start in Verbose mode")
+	fmt.Println("  agt-ul update        Self-update and rebuild binary from source")
 	fmt.Println("  agt-ul doctor        Run full system health check & diagnostics")
 	fmt.Println("  agt-ul doctor --fix  Run diagnostics and auto-repair issues")
 	fmt.Println("  agt-ul setup         Run interactive setup wizard")
 	fmt.Println("  agt-ul status        Display detected CLI tools & system diagnostics")
 	fmt.Println("  agt-ul memory        Inspect Palace-Mnemosyne memory stats")
 	fmt.Println("  agt-ul cron          List active background scheduled tasks")
+	fmt.Println("  agt-ul version       Display version and build info")
 	fmt.Println("  agt-ul hook-memory   Antigravity PreInvocation lifecycle hook")
 	fmt.Println("  agt-ul hook-reflect  Antigravity Stop lifecycle hook")
 }
