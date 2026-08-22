@@ -1,6 +1,6 @@
 """
 Antigravity-Unleashed Persistent Memory Store
-Combines SQLite relational metadata with vector similarity search for semantic RAG.
+Combines SQLite relational metadata, FTS5 full-text keyword indexing, and vector similarity for Hybrid RAG.
 """
 
 import os
@@ -23,7 +23,7 @@ class MemoryStore:
     def _init_db(self):
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
-            # Relational metadata & episodic memories table
+            # 1. Relational metadata & episodic memories table
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS memories (
                     id TEXT PRIMARY KEY,
@@ -40,13 +40,24 @@ class MemoryStore:
             cursor.execute("""
                 CREATE INDEX IF NOT EXISTS idx_memories_category ON memories(category);
             """)
+
+            # 2. SQLite FTS5 Full-Text Search Table for Hybrid BM25 Matching
+            try:
+                cursor.execute("""
+                    CREATE VIRTUAL TABLE IF NOT EXISTS memories_fts USING fts5(
+                        id UNINDEXED,
+                        content,
+                        category
+                    );
+                """)
+            except sqlite3.OperationalError:
+                pass  # Fallback if FTS5 not enabled in certain environments
+
             conn.commit()
 
     def _compute_embedding(self, text: str) -> np.ndarray:
         """
-        Deterministic, lightweight embedding projection using char n-gram hashing
-        if external neural embedding library is not loaded.
-        Can be upgraded to sentence-transformers or Gemini text-embedding-004.
+        Deterministic, lightweight embedding projection using char n-gram hashing.
         """
         vec = np.zeros(self.vector_dim, dtype=np.float32)
         words = text.lower().split()
@@ -54,7 +65,6 @@ class MemoryStore:
             return vec
 
         for word in words:
-            # 3-gram feature hashing
             for i in range(max(1, len(word) - 2)):
                 gram = word[i:i+3]
                 h = int(hashlib.md5(gram.encode()).hexdigest(), 16)
@@ -84,6 +94,17 @@ class MemoryStore:
                 INSERT OR REPLACE INTO memories (id, category, content, source, embedding, metadata_json)
                 VALUES (?, ?, ?, ?, ?, ?)
             """, (mem_id, category, content, source, embedding, metadata_json))
+
+            # Ingest into FTS5 virtual table
+            try:
+                cursor.execute("DELETE FROM memories_fts WHERE id = ?", (mem_id,))
+                cursor.execute(
+                    "INSERT INTO memories_fts (id, content, category) VALUES (?, ?, ?)",
+                    (mem_id, content, category)
+                )
+            except sqlite3.OperationalError:
+                pass
+
             conn.commit()
 
         return mem_id
@@ -95,11 +116,32 @@ class MemoryStore:
         limit: int = 5,
         min_similarity: float = 0.4,
     ) -> List[Dict[str, Any]]:
+        """
+        Hybrid search combining Vector Cosine Similarity with FTS5 Keyword BM25 boosts.
+        """
         query_vec = self._compute_embedding(query)
-        results = []
+        scored_memories: Dict[str, Dict[str, Any]] = {}
 
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
+
+            # 1. Keyword FTS5 Search
+            clean_query = "".join([c for c in query if c.isalnum() or c.isspace()]).strip()
+            if clean_query:
+                fts_query = " OR ".join(clean_query.split()[:5])
+                try:
+                    cursor.execute("""
+                        SELECT id, rank FROM memories_fts WHERE memories_fts MATCH ? ORDER BY rank LIMIT 10
+                    """, (fts_query,))
+                    for row in cursor.fetchall():
+                        m_id, rank = row
+                        # Convert FTS rank into a positive score boost
+                        boost = max(0.1, min(0.3, abs(rank) * 0.05))
+                        scored_memories[m_id] = {"fts_boost": boost}
+                except sqlite3.OperationalError:
+                    pass
+
+            # 2. Vector Cosine Search
             if category:
                 cursor.execute(
                     "SELECT id, category, content, source, created_at, embedding, metadata_json FROM memories WHERE category = ?",
@@ -111,6 +153,7 @@ class MemoryStore:
                 )
 
             rows = cursor.fetchall()
+            results = []
 
             for row in rows:
                 m_id, m_cat, m_content, m_source, m_created, m_emb_bytes, m_meta = row
@@ -118,19 +161,26 @@ class MemoryStore:
                     continue
 
                 emb = np.frombuffer(m_emb_bytes, dtype=np.float32)
-                sim = float(np.dot(query_vec, emb))
-                if sim >= min_similarity:
+                vec_sim = float(np.dot(query_vec, emb))
+                fts_boost = scored_memories.get(m_id, {}).get("fts_boost", 0.0)
+                
+                # Hybrid combined score
+                final_score = vec_sim + fts_boost
+
+                if final_score >= min_similarity:
                     results.append({
                         "id": m_id,
                         "category": m_cat,
                         "content": m_content,
                         "source": m_source,
                         "created_at": m_created,
-                        "similarity": round(sim, 4),
+                        "similarity": round(final_score, 4),
+                        "vector_similarity": round(vec_sim, 4),
+                        "fts_boost": round(fts_boost, 4),
                         "metadata": json.loads(m_meta) if m_meta else {},
                     })
 
-            # Update access timestamps for top matched memories
+            # Sort and update access stats
             results.sort(key=lambda x: x["similarity"], reverse=True)
             top_results = results[:limit]
 

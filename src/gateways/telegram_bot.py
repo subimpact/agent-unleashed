@@ -86,9 +86,13 @@ class TelegramGateway:
                 final_text = final_text[:3990] + "\n...(truncated)"
             
             try:
-                await status_msg.edit_text(final_text)
+                await status_msg.edit_text(final_text, parse_mode="Markdown")
             except Exception:
-                await update.message.reply_text(final_text)
+                try:
+                    # Fallback to plain text if Markdown syntax fails
+                    await status_msg.edit_text(final_text)
+                except Exception:
+                    await update.message.reply_text(final_text)
 
         self._app.add_handler(CommandHandler("start", start_cmd))
         self._app.add_handler(CommandHandler("memory", memory_cmd))
