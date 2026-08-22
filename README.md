@@ -103,6 +103,7 @@ go build -o agt-ul.exe .
 | :--- | :--- | :--- |
 | **🚀 Google Antigravity (`agy`)** | `npm install -g @google/antigravity-cli` | `agy auth login` |
 | **🧠 Claude Code (`claude`)** | `npm install -g @anthropic-ai/claude-code` | `claude` *(Browser login)* |
+| **⚡ OpenAI Codex (`codex`)** | `npm install -g @openai/codex` | `codex auth login` |
 | **🤖 Aider (`aider`)** | `pipx install aider-chat` *(or `pip install aider-chat`)* | Uses local env/keys |
 | **🦙 Ollama (`ollama`)** | [ollama.com/download](https://ollama.com/download) / `brew install ollama` | `ollama pull qwen2.5-coder:7b` |
 

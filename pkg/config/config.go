@@ -20,6 +20,7 @@ type ModelConfig struct {
 	Driver           string  `yaml:"driver"`             // 'auto', 'agy', 'claude', 'aider', 'hermes', 'ollama', 'api'
 	AgyBinaryPath    string  `yaml:"agy_binary_path"`    // Optional explicit path to agy
 	ClaudeBinaryPath string  `yaml:"claude_binary_path"` // Optional explicit path to claude
+	CodexBinaryPath  string  `yaml:"codex_binary_path"`  // Optional explicit path to codex
 	AiderBinaryPath  string  `yaml:"aider_binary_path"`  // Optional explicit path to aider
 	HermesBinaryPath string  `yaml:"hermes_binary_path"` // Optional explicit path to hermes
 	Effort           string  `yaml:"effort"`             // 'low', 'medium', 'high'

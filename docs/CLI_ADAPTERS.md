@@ -10,6 +10,7 @@
 | :--- | :--- | :--- | :--- |
 | **`agy`** | `agy` / `antigravity` | Google Antigravity Subagent Pipe | Google Account Session |
 | **`claude`** | `claude` | Anthropic Claude Code CLI | Anthropic Local Login |
+| **`codex`** | `codex` | OpenAI Codex Developer CLI | OpenAI Session / API Key |
 | **`aider`** | `aider` | Aider Multi-File Architect | Local CLI Session |
 | **`ollama`** | `ollama` / `curl` | Local Offline LLMs (DeepSeek-R1, Qwen2.5) | Localhost (100% Offline) |
 | **`api`** | Direct HTTPS | Direct OpenAI/Gemini/Anthropic API | API Key in `config.yaml` |

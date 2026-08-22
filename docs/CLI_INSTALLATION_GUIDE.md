@@ -65,7 +65,35 @@ claude --version
 
 ---
 
-## 3. 🤖 Aider Multi-File Architect (`aider`)
+## 3. ⚡ OpenAI Codex CLI (`codex`)
+
+OpenAI Codex CLI is OpenAI's autonomous terminal-based developer agent.
+
+### Installation
+```bash
+# Via npm
+npm install -g @openai/codex
+
+# Or via pip
+pip install codex-cli
+```
+
+### Authentication
+```bash
+# Authenticate with your OpenAI account / API key
+codex auth login
+# or set environment variable
+export OPENAI_API_KEY="sk-..."
+```
+
+### Verification
+```bash
+codex --version
+```
+
+---
+
+## 4. 🤖 Aider Multi-File Architect (`aider`)
 
 Aider is a popular open-source AI pair programmer for terminal and git repositories.
 
