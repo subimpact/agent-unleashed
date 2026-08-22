@@ -3,6 +3,10 @@
 *.env
 web/.env
 
+# Web Landing Page & Wrangler
+web/
+.wrangler/
+
 # Binaries & Build Artifacts
 *.exe
 agt-ul.exe
