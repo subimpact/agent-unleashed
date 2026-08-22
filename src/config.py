@@ -20,12 +20,14 @@ class SystemConfig(BaseModel):
 
 
 class ModelConfig(BaseModel):
-    provider: str = "agy"            # Options: 'agy' (Uses local Antigravity CLI session - NO API KEY NEEDED), 'ollama', 'gemini'
+    provider: str = "agy"            # Uses your existing local Antigravity CLI (agy)
+    agy_binary_path: Optional[str] = None # Auto-detects if null (e.g., C:\Users\me\AppData\Local\agy\bin\agy.exe)
+    effort: str = "high"             # Reasoning effort: 'low', 'medium', 'high'
     model_name: str = "auto"
     api_key: Optional[str] = None
     temperature: float = 0.2
     max_output_tokens: int = 8192
-    auto_approve_tools: bool = True  # Uses --dangerously-skip-permissions with agy
+    auto_approve_tools: bool = True  # Passes --dangerously-skip-permissions to agy
 
 
 class MemoryConfig(BaseModel):

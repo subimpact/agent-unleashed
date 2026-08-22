@@ -11,12 +11,14 @@ system:
   log_level: "INFO"
 
 # LLM Backend Configuration
-# Uses your active Antigravity CLI session by default — ZERO API KEY NEEDED!
+# Directly powered by your existing local Antigravity CLI (agy) — NO API KEY NEEDED!
 model:
-  provider: "agy"                  # Options: 'agy' (No API key needed), 'ollama' (Local), 'gemini'
+  provider: "agy"                  # Options: 'agy' (Primary), 'ollama' (Local), 'gemini'
+  agy_binary_path: null            # Path to agy.exe (null auto-detects from PATH or AppData)
+  effort: "high"                   # Reasoning effort: 'low', 'medium', 'high'
+  auto_approve_tools: true         # Automatically execute tools without blocking (--dangerously-skip-permissions)
   model_name: "auto"
-  api_key: ""                      # Not needed when provider is 'agy' or 'ollama'
-  auto_approve_tools: true         # Automatically execute tools without blocking
+  api_key: ""
 
 # Long-Term Persistent Memory (Semantic Vector + SQLite)
 memory:

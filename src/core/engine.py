@@ -146,6 +146,24 @@ class UnleashedAgentEngine:
                     "insights": insights
                 }
 
+    def _resolve_agy_path(self) -> str:
+        if self.config.model.agy_binary_path and os.path.exists(self.config.model.agy_binary_path):
+            return self.config.model.agy_binary_path
+
+        # Check standard PATH
+        import shutil
+        found = shutil.which("agy") or shutil.which("agy.exe")
+        if found:
+            return found
+
+        # Check Windows default AppData location
+        local_app_data = os.getenv("LOCALAPPDATA", "")
+        fallback_win = os.path.join(local_app_data, "agy", "bin", "agy.exe")
+        if os.path.exists(fallback_win):
+            return fallback_win
+
+        return "agy"
+
     async def _run_agy_agent_loop(
         self,
         session_id: str,
@@ -154,17 +172,24 @@ class UnleashedAgentEngine:
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """
         Executes prompt through the local authenticated Antigravity CLI (agy).
-        Requires ZERO standalone API keys!
+        Directly uses your active account and CLI session with ZERO standalone API keys!
         """
-        yield {"type": "thought", "content": "Querying local Antigravity session (Zero-API-Key)..."}
+        agy_bin = self._resolve_agy_path()
+        yield {"type": "thought", "content": f"Invoking Antigravity CLI ({agy_bin})..."}
 
-        cmd = ["agy", "--output-format", "json", f"--print={prompt}"]
+        cmd = [
+            agy_bin,
+            "--output-format", "json",
+            f"--effort={self.config.model.effort}",
+            f"--print={prompt}"
+        ]
+
         if self.config.model.auto_approve_tools:
             cmd.append("--dangerously-skip-permissions")
 
         # Resume conversation if exists for this session
         if session_id in self.agy_conversations:
-            cmd.extend(["--conversation", self.agy_conversations[session_id]])
+            cmd.append(f"--conversation={self.agy_conversations[session_id]}")
 
         try:
             process = await asyncio.create_subprocess_exec(
