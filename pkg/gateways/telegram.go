@@ -24,8 +24,21 @@ type TelegramGateway struct {
 }
 
 type TGUpdate struct {
-	UpdateID int64 `json:"update_id"`
-	Message  *struct {
+	UpdateID      int64 `json:"update_id"`
+	CallbackQuery *struct {
+		ID   string `json:"id"`
+		Data string `json:"data"`
+		From struct {
+			ID int64 `json:"id"`
+		} `json:"from"`
+		Message *struct {
+			MessageID int64 `json:"message_id"`
+			Chat      struct {
+				ID int64 `json:"id"`
+			} `json:"chat"`
+		} `json:"message"`
+	} `json:"callback_query"`
+	Message *struct {
 		MessageID int64 `json:"message_id"`
 		Chat      struct {
 			ID int64 `json:"id"`
@@ -82,6 +95,43 @@ func (t *TelegramGateway) sendMessage(chatID int64, text string) {
 	}
 }
 
+func (t *TelegramGateway) SendInteractiveApproval(chatID int64, actionDescription string, actionID string) {
+	payload := map[string]interface{}{
+		"chat_id": chatID,
+		"text":    fmt.Sprintf("⚠️ **[Approval Required]**\nAction: `%s`", actionDescription),
+		"reply_markup": map[string]interface{}{
+			"inline_keyboard": [][]map[string]string{
+				{
+					{"text": "✅ Approve", "callback_data": fmt.Sprintf("approve_%s", actionID)},
+					{"text": "⛔ Deny", "callback_data": fmt.Sprintf("deny_%s", actionID)},
+				},
+			},
+		},
+	}
+	body, _ := json.Marshal(payload)
+
+	req, _ := http.NewRequest("POST", t.apiBase+"/sendMessage", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := t.client.Do(req)
+	if err == nil {
+		_ = resp.Body.Close()
+	}
+}
+
+func (t *TelegramGateway) answerCallbackQuery(callbackID string, text string) {
+	payload := map[string]string{
+		"callback_query_id": callbackID,
+		"text":              text,
+	}
+	body, _ := json.Marshal(payload)
+	req, _ := http.NewRequest("POST", t.apiBase+"/answerCallbackQuery", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := t.client.Do(req)
+	if err == nil {
+		_ = resp.Body.Close()
+	}
+}
+
 func (t *TelegramGateway) Start(ctx context.Context) error {
 	if t.cfg.BotToken == "" {
 		return nil
@@ -117,6 +167,25 @@ func (t *TelegramGateway) Start(ctx context.Context) error {
 				t.offset = update.UpdateID + 1
 			}
 
+			// Handle Interactive Button Callbacks
+			if update.CallbackQuery != nil {
+				cb := update.CallbackQuery
+				if cb.Data != "" {
+					if strings.HasPrefix(cb.Data, "approve_") {
+						t.answerCallbackQuery(cb.ID, "Action Approved! Executing...")
+						if cb.Message != nil {
+							t.sendMessage(cb.Message.Chat.ID, "✅ Action approved by user.")
+						}
+					} else if strings.HasPrefix(cb.Data, "deny_") {
+						t.answerCallbackQuery(cb.ID, "Action Denied.")
+						if cb.Message != nil {
+							t.sendMessage(cb.Message.Chat.ID, "⛔ Action cancelled by user.")
+						}
+					}
+				}
+				continue
+			}
+
 			if update.Message == nil || update.Message.Text == "" {
 				continue
 			}
@@ -131,7 +200,7 @@ func (t *TelegramGateway) Start(ctx context.Context) error {
 			sessionID := fmt.Sprintf("telegram_%d", chatID)
 
 			if text == "/start" {
-				t.sendMessage(chatID, "🚀 *Agent-Unleashed Online!* (agt-ul Universal Go Core)\nSend me any coding task or command.")
+				t.sendMessage(chatID, "🚀 *Agent-Unleashed Online!* (agt-ul Universal Go Core)\nSend me any coding task, question, or command.")
 				continue
 			}
 
@@ -143,6 +212,22 @@ func (t *TelegramGateway) Start(ctx context.Context) error {
 					out.WriteString(fmt.Sprintf("• Room [%s]: %d drawers\n", room, count))
 				}
 				t.sendMessage(chatID, out.String())
+				continue
+			}
+
+			if text == "/context" {
+				stats := t.engine.GetLastResult()
+				used := 0
+				limit := 1048576
+				if stats != nil {
+					used = stats.TotalTokens
+					if stats.ContextLimit > 0 {
+						limit = stats.ContextLimit
+					}
+				}
+				pctLeft := 100.0 - (float64(used)/float64(limit))*100.0
+				t.sendMessage(chatID, fmt.Sprintf("📊 Context Budget:\n• Used: %d tok\n• Limit: %d tok\n• Available: %.1f%%\n• Driver: %s",
+					used, limit, pctLeft, t.engine.GetActiveDriverName()))
 				continue
 			}
 

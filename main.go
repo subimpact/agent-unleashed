@@ -13,6 +13,7 @@ import (
 	"syscall"
 
 	"agent-unleashed/pkg/config"
+	"agent-unleashed/pkg/cron"
 	"agent-unleashed/pkg/engine"
 	"agent-unleashed/pkg/gateways"
 	"agent-unleashed/pkg/wizard"
@@ -38,6 +39,10 @@ func main() {
 
 		case "memory":
 			runMemoryReport(configPath)
+			return
+
+		case "cron":
+			runCronReport(configPath)
 			return
 
 		case "hook-memory":
@@ -80,6 +85,17 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	// Initialize In-Process Cron Engine
+	var cronEng *cron.CronEngine
+	if eng.MemoryStore != nil {
+		cronEng, _ = cron.NewCronEngine(eng.MemoryStore.GetDB(), eng, func(channel, targetID, response string) {
+			log.Printf("[Cron Dispatched -> %s (%s)]: %s\n", channel, targetID, response)
+		})
+		if cronEng != nil {
+			go cronEng.Start(ctx)
+		}
+	}
+
 	// Signal Trapping for Graceful Shutdown
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
@@ -91,7 +107,7 @@ func main() {
 
 	var wg sync.WaitGroup
 
-	// 1. REST API Gateway
+	// 1. REST API & WebSocket Gateway
 	if cfg.Gateways.RESTAPI.Enabled {
 		wg.Add(1)
 		restGW := gateways.NewRESTAPIGateway(eng, cfg.Gateways.RESTAPI)
@@ -129,7 +145,7 @@ func main() {
 
 	// 4. CLI Gateway (Foreground)
 	if cfg.Gateways.CLI.Enabled {
-		cliGW := gateways.NewCLIGateway(eng)
+		cliGW := gateways.NewCLIGateway(eng, cronEng)
 		if err := cliGW.Start(ctx); err != nil {
 			log.Printf("[CLI Gateway] Error: %v\n", err)
 		}
@@ -147,11 +163,41 @@ func printHelp() {
 	fmt.Println("Agent-Unleashed (agt-ul) - Universal Go Agent Harness & Gateway")
 	fmt.Println("\nUsage:")
 	fmt.Println("  agt-ul               Start interactive REPL & 24/7 daemon")
+	fmt.Println("  agt-ul -v            Start in Verbose mode")
 	fmt.Println("  agt-ul setup         Run interactive setup wizard")
 	fmt.Println("  agt-ul status        Display detected CLI tools & system diagnostics")
 	fmt.Println("  agt-ul memory        Inspect Palace-Mnemosyne memory stats")
+	fmt.Println("  agt-ul cron          List active background scheduled tasks")
 	fmt.Println("  agt-ul hook-memory   Antigravity PreInvocation lifecycle hook")
 	fmt.Println("  agt-ul hook-reflect  Antigravity Stop lifecycle hook")
+}
+
+func runCronReport(configPath string) {
+	cfg, err := config.LoadConfig(configPath)
+	if err != nil {
+		log.Fatalf("Error: %v", err)
+	}
+	eng, err := engine.NewUnleashedEngine(cfg)
+	if err != nil {
+		log.Fatalf("Engine error: %v", err)
+	}
+	defer eng.MemoryStore.Close()
+
+	cronEng, err := cron.NewCronEngine(eng.MemoryStore.GetDB(), eng, nil)
+	if err != nil {
+		log.Fatalf("Cron error: %v", err)
+	}
+
+	jobs := cronEng.ListJobs()
+	fmt.Printf("\n⏰ AGENT-UNLEASHED 24/7 CRON AUTOMATIONS (%d Active):\n", len(jobs))
+	if len(jobs) == 0 {
+		fmt.Println("  ⚪ No scheduled tasks currently registered.")
+	} else {
+		for _, j := range jobs {
+			fmt.Printf("  • [%s] Schedule: `%s` | Channel: %s | Prompt: %s\n", j.ID, j.Schedule, j.Channel, j.Prompt)
+		}
+	}
+	fmt.Println()
 }
 
 func runStatusReport(configPath string) {

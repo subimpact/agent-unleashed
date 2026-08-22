@@ -84,6 +84,10 @@ func NewMemoryStore(dbPath string, vectorDim int, decayHalfLifeDays float64) (*M
 	return store, nil
 }
 
+func (s *MemoryStore) GetDB() *sql.DB {
+	return s.db
+}
+
 func (s *MemoryStore) initDB() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

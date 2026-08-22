@@ -9,6 +9,7 @@ import (
 	"agent-unleashed/pkg/adapters"
 	"agent-unleashed/pkg/config"
 	"agent-unleashed/pkg/memory"
+	"agent-unleashed/pkg/skills"
 )
 
 type EventType string
@@ -38,6 +39,8 @@ type Event struct {
 type UnleashedEngine struct {
 	cfg          *config.AppConfig
 	MemoryStore  *memory.MemoryStore
+	ProfileMgr   *memory.ProfileManager
+	SkillIndexer *skills.SkillIndexer
 	Tools        *ToolRunner
 	Reflection   *ReflectionEngine
 	Registry     *adapters.AdapterRegistry
@@ -59,6 +62,8 @@ func NewUnleashedEngine(cfg *config.AppConfig) (*UnleashedEngine, error) {
 		}
 	}
 
+	profileMgr := memory.NewProfileManager(store)
+	skillIndexer := skills.NewSkillIndexer(cfg.System.SkillsDir)
 	toolRunner := NewToolRunner(cfg.System.WorkspaceDir, store)
 	refl := NewReflectionEngine(cfg.System.WorkspaceDir, cfg.System.SkillsDir, store)
 
@@ -77,6 +82,8 @@ func NewUnleashedEngine(cfg *config.AppConfig) (*UnleashedEngine, error) {
 	return &UnleashedEngine{
 		cfg:          cfg,
 		MemoryStore:  store,
+		ProfileMgr:   profileMgr,
+		SkillIndexer: skillIndexer,
 		Tools:        toolRunner,
 		Reflection:   refl,
 		Registry:     reg,
@@ -149,8 +156,25 @@ func (e *UnleashedEngine) resolveAdapter() (adapters.CLIAdapter, string) {
 func (e *UnleashedEngine) Chat(ctx context.Context, sessionID, userMessage, channelName string, out chan<- Event) {
 	defer close(out)
 
-	// 1. Query Palace-Mnemosyne Memory
-	var memoryContext string
+	var contextBlocks []string
+
+	// 1. Ingest Dialectic User Persona
+	if e.ProfileMgr != nil {
+		profSummary := e.ProfileMgr.GetSummary()
+		if profSummary != "" {
+			contextBlocks = append(contextBlocks, profSummary)
+		}
+	}
+
+	// 2. Progressive Skills Index Injection (Lightweight Narrow Waist)
+	if e.SkillIndexer != nil {
+		skillIdx := e.SkillIndexer.GenerateLightweightIndex()
+		if skillIdx != "" {
+			contextBlocks = append(contextBlocks, skillIdx)
+		}
+	}
+
+	// 3. Query Palace-Mnemosyne Memory
 	if e.MemoryStore != nil && e.cfg.Memory.Enabled {
 		memories, err := e.MemoryStore.SearchMemories(
 			userMessage,
@@ -170,13 +194,18 @@ func (e *UnleashedEngine) Chat(ctx context.Context, sessionID, userMessage, chan
 				Count:    len(memories),
 				Memories: memStrings,
 			}
-			memoryContext = fmt.Sprintf("[Palace-Mnemosyne Memory Context]:\n%s\n\n", strings.Join(lines, "\n"))
+			contextBlocks = append(contextBlocks, fmt.Sprintf("[Palace-Mnemosyne Memory Context]:\n%s", strings.Join(lines, "\n")))
 		}
 	}
 
-	augmentedPrompt := memoryContext + userMessage
+	var augmentedPrompt string
+	if len(contextBlocks) > 0 {
+		augmentedPrompt = strings.Join(contextBlocks, "\n\n") + "\n\n" + userMessage
+	} else {
+		augmentedPrompt = userMessage
+	}
 
-	// 2. Select & Run CLI Adapter
+	// 4. Select & Run CLI Adapter
 	adapter, actualName := e.resolveAdapter()
 	if adapter == nil {
 		out <- Event{
@@ -225,7 +254,7 @@ func (e *UnleashedEngine) Chat(ctx context.Context, sessionID, userMessage, chan
 		Stats: execResult,
 	}
 
-	// 3. Post-Task Reflection & Self-Evolution
+	// 5. Post-Task Reflection & Self-Evolution
 	if e.cfg.Reflection.Enabled && e.Reflection != nil {
 		insights := e.Reflection.Reflect(sessionID, userMessage, execResult.Response, nil)
 		if len(insights) > 0 {

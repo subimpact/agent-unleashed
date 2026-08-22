@@ -16,6 +16,7 @@ type RESTAPIGateway struct {
 	engine *engine.UnleashedEngine
 	cfg    config.RESTAPIGatewayConfig
 	server *http.Server
+	wsHub  *WebSocketHub
 }
 
 type TriggerRequest struct {
@@ -33,12 +34,14 @@ func NewRESTAPIGateway(eng *engine.UnleashedEngine, cfg config.RESTAPIGatewayCon
 	return &RESTAPIGateway{
 		engine: eng,
 		cfg:    cfg,
+		wsHub:  NewWebSocketHub(eng),
 	}
 }
 
 func (r *RESTAPIGateway) Start(ctx context.Context) error {
 	mux := http.NewServeMux()
 
+	// 1. Health check
 	mux.HandleFunc("/health", func(w http.ResponseWriter, req *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]string{
@@ -47,6 +50,10 @@ func (r *RESTAPIGateway) Start(ctx context.Context) error {
 		})
 	})
 
+	// 2. Real-Time WebSocket Streaming Endpoint
+	mux.Handle("/ws", r.wsHub.Handler())
+
+	// 3. REST API Webhook Trigger
 	mux.HandleFunc("/api/v1/trigger", func(w http.ResponseWriter, req *http.Request) {
 		if req.Method != http.MethodPost {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -92,7 +99,7 @@ func (r *RESTAPIGateway) Start(ctx context.Context) error {
 		Handler: mux,
 	}
 
-	log.Printf("[REST API Gateway] Listening on http://%s\n", addr)
+	log.Printf("[REST & WS Gateway] Listening on http://%s (WebSocket at ws://%s/ws)\n", addr, addr)
 
 	go func() {
 		<-ctx.Done()

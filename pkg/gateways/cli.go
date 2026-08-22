@@ -8,15 +8,17 @@ import (
 	"strings"
 
 	"agent-unleashed/pkg/adapters"
+	"agent-unleashed/pkg/cron"
 	"agent-unleashed/pkg/engine"
 )
 
 type CLIGateway struct {
 	engine *engine.UnleashedEngine
+	cronEng *cron.CronEngine
 }
 
-func NewCLIGateway(eng *engine.UnleashedEngine) *CLIGateway {
-	return &CLIGateway{engine: eng}
+func NewCLIGateway(eng *engine.UnleashedEngine, ce *cron.CronEngine) *CLIGateway {
+	return &CLIGateway{engine: eng, cronEng: ce}
 }
 
 func (c *CLIGateway) Start(ctx context.Context) error {
@@ -89,6 +91,23 @@ func (c *CLIGateway) Start(ctx context.Context) error {
 
 		if lower == ":stats" {
 			c.printSessionStats()
+			continue
+		}
+
+		if lower == ":profile" {
+			if c.engine.ProfileMgr != nil {
+				fmt.Println("\n============================================================")
+				fmt.Println("  👤 DIALECTIC USER PERSONA & CODING PROFILE")
+				fmt.Println("============================================================")
+				fmt.Println(c.engine.ProfileMgr.GetSummary())
+				fmt.Println("============================================================")
+				fmt.Println()
+			}
+			continue
+		}
+
+		if strings.HasPrefix(lower, ":cron") {
+			c.handleCronCommand(input)
 			continue
 		}
 
@@ -266,10 +285,84 @@ func (c *CLIGateway) printSessionStats() {
 	fmt.Println()
 }
 
+func (c *CLIGateway) handleCronCommand(input string) {
+	if c.cronEng == nil {
+		fmt.Println("❌ Cron Engine not active.")
+		return
+	}
+
+	parts := strings.Fields(input)
+	if len(parts) == 1 || parts[1] == "list" {
+		jobs := c.cronEng.ListJobs()
+		fmt.Printf("\n⏰ Active Cron Automations (%d):\n", len(jobs))
+		if len(jobs) == 0 {
+			fmt.Println("  ⚪ No active scheduled tasks. Add one with ':cron add \"0 9 * * *\" \"Prompt\"'")
+		} else {
+			for _, j := range jobs {
+				fmt.Printf("  • [%s] Schedule: `%s` | Channel: %s | Prompt: %s\n", j.ID, j.Schedule, j.Channel, j.Prompt)
+			}
+		}
+		fmt.Println()
+		return
+	}
+
+	if parts[1] == "remove" || parts[1] == "rm" || parts[1] == "del" {
+		if len(parts) < 3 {
+			fmt.Println("Usage: :cron remove <job_id>")
+			return
+		}
+		jobID := parts[2]
+		if err := c.cronEng.RemoveJob(jobID); err != nil {
+			fmt.Printf("❌ Failed to remove job: %v\n", err)
+		} else {
+			fmt.Printf("✅ Removed cron job [%s]\n", jobID)
+		}
+		return
+	}
+
+	if parts[1] == "add" {
+		// Parse :cron add "<schedule>" "<prompt>"
+		raw := strings.TrimPrefix(input, ":cron add")
+		raw = strings.TrimSpace(raw)
+		// Extract quoted arguments or standard spacing
+		splitQuotes := strings.Split(raw, "\"")
+		var sched, prompt string
+		if len(splitQuotes) >= 4 {
+			sched = strings.TrimSpace(splitQuotes[1])
+			prompt = strings.TrimSpace(splitQuotes[3])
+		} else {
+			// Fallback: first 5 tokens are schedule, rest is prompt
+			fields := strings.Fields(raw)
+			if len(fields) >= 6 {
+				sched = strings.Join(fields[:5], " ")
+				prompt = strings.Join(fields[5:], " ")
+			}
+		}
+
+		if sched == "" || prompt == "" {
+			fmt.Println("Usage: :cron add \"<5-field-schedule>\" \"<prompt>\"")
+			fmt.Println("Example: :cron add \"0 9 * * *\" \"Check git log and summarize progress\"")
+			return
+		}
+
+		job, err := c.cronEng.AddJob(sched, prompt, "log", "")
+		if err != nil {
+			fmt.Printf("❌ Failed to add cron job: %v\n", err)
+		} else {
+			fmt.Printf("✅ Scheduled Cron Job [%s] with schedule `%s`\n", job.ID, job.Schedule)
+		}
+		return
+	}
+
+	fmt.Println("Unknown cron command. Try ':cron list', ':cron add \"<schedule>\" \"<prompt>\"', or ':cron remove <id>'")
+}
+
 func (c *CLIGateway) printHelp() {
 	fmt.Println("\n📖 Available Commands:")
 	fmt.Println("  :context        - Visual context window gauge & token breakdown")
 	fmt.Println("  :verbose        - Toggle verbose mode on/off (detailed commands & debug)")
+	fmt.Println("  :profile        - View & manage dialectic user persona & coding profile")
+	fmt.Println("  :cron           - List or manage 24/7 background scheduled tasks (:cron list/add/remove)")
 	fmt.Println("  :stats          - View session execution diagnostics and token metrics")
 	fmt.Println("  :drivers        - List all detected AI CLI tools on this system")
 	fmt.Println("  :driver <name>  - Switch active driver (e.g. ':driver agy', ':driver claude')")
