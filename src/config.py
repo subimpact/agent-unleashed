@@ -20,11 +20,12 @@ class SystemConfig(BaseModel):
 
 
 class ModelConfig(BaseModel):
-    provider: str = "gemini"
-    model_name: str = "gemini-2.5-pro"
+    provider: str = "agy"            # Options: 'agy' (Uses local Antigravity CLI session - NO API KEY NEEDED), 'ollama', 'gemini'
+    model_name: str = "auto"
     api_key: Optional[str] = None
     temperature: float = 0.2
     max_output_tokens: int = 8192
+    auto_approve_tools: bool = True  # Uses --dangerously-skip-permissions with agy
 
 
 class MemoryConfig(BaseModel):
