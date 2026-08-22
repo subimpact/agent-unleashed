@@ -7,7 +7,7 @@ import (
 	"os"
 	"strings"
 
-	"antigravity-unleashed/pkg/engine"
+	"agent-unleashed/pkg/engine"
 )
 
 type CLIGateway struct {
@@ -20,10 +20,10 @@ func NewCLIGateway(eng *engine.UnleashedEngine) *CLIGateway {
 
 func (c *CLIGateway) Start(ctx context.Context) error {
 	fmt.Println("\n============================================================")
-	fmt.Println("  🚀 ANTIGRAVITY-UNLEASHED (Go High-Performance Core)")
-	fmt.Println("  Autonomous 24/7 Agent with Persistent Memory & Reflection")
+	fmt.Println("  🚀 AGENT-UNLEASHED (agt-ul) Universal Go Agent Harness")
+	fmt.Println("  Multi-CLI Orchestration | Palace-Mnemosyne Memory | 24/7 Gateways")
 	fmt.Println("============================================================")
-	fmt.Println("Commands: ':memory' to view memories, ':skills' to view skills, ':exit' to quit.\n")
+	fmt.Printf("Active Driver: [%s] | Type ':help' for commands, ':exit' to quit.\n\n", c.engine.GetActiveDriverName())
 
 	reader := bufio.NewReader(os.Stdin)
 	sessionID := "cli_main"
@@ -35,7 +35,7 @@ func (c *CLIGateway) Start(ctx context.Context) error {
 		default:
 		}
 
-		fmt.Print("👤 You > ")
+		fmt.Printf("👤 You [%s] > ", c.engine.GetActiveDriverName())
 		input, err := reader.ReadString('\n')
 		if err != nil {
 			break
@@ -46,27 +46,70 @@ func (c *CLIGateway) Start(ctx context.Context) error {
 			continue
 		}
 
-		switch strings.ToLower(input) {
-		case ":exit", "exit", "quit":
+		lower := strings.ToLower(input)
+
+		if lower == ":exit" || lower == "exit" || lower == "quit" {
 			fmt.Println("\n👋 Shutting down CLI...")
 			return nil
+		}
 
-		case ":memory":
+		if lower == ":help" {
+			fmt.Println("\n📖 Available Commands:")
+			fmt.Println("  :drivers        - List all detected AI CLI tools on this machine")
+			fmt.Println("  :driver <name>  - Switch active driver (e.g. ':driver agy', ':driver claude')")
+			fmt.Println("  :memory         - View Palace-Mnemosyne memory stats and rooms")
+			fmt.Println("  :skills         - List learned .agents/skills/ runbooks")
+			fmt.Println("  :exit           - Exit CLI")
+			fmt.Println()
+			continue
+		}
+
+		if lower == ":drivers" {
+			fmt.Println("\n🔍 Detected AI CLI Tools on System:")
+			available := c.engine.Registry.ListAvailable()
+			if len(available) == 0 {
+				fmt.Println("  ⚪ No external CLI tools detected. (Cloud API fallback will be used).")
+			} else {
+				for _, a := range available {
+					activeMark := ""
+					if a.Name() == c.engine.GetActiveDriverName() {
+						activeMark = " ⭐ [ACTIVE]"
+					}
+					fmt.Printf("  ✅ %s (%s)%s\n", a.DisplayName(), a.BinaryPath(), activeMark)
+				}
+			}
+			fmt.Println()
+			continue
+		}
+
+		if strings.HasPrefix(lower, ":driver ") {
+			targetDriver := strings.TrimSpace(input[8:])
+			c.engine.SetDriver(targetDriver)
+			fmt.Printf("🔄 Switched active driver to: [%s]\n\n", targetDriver)
+			continue
+		}
+
+		if lower == ":memory" {
 			if c.engine.MemoryStore != nil {
-				mems, err := c.engine.MemoryStore.GetRecentMemories(10)
+				stats, err := c.engine.MemoryStore.GetStats()
 				if err != nil {
 					fmt.Printf("❌ Memory query error: %v\n\n", err)
 				} else {
-					fmt.Printf("\n🧠 Persistent Memories (%d):\n", len(mems))
-					for _, m := range mems {
-						fmt.Printf("  • [%s] %s (%s)\n", m.Category, m.Content, m.Source)
+					fmt.Printf("\n🏛️ Palace-Mnemosyne Memory Palace (%d Total Drawers):\n", stats.TotalMemories)
+					for room, count := range stats.Rooms {
+						fmt.Printf("  🚪 Room [%s]: %d drawers\n", room, count)
+					}
+					fmt.Println("\nRecent Entries:")
+					for _, m := range stats.TopAccessed {
+						fmt.Printf("  • [%s:%s] %s (decay: %.2f, score: %.2f)\n", m.Room, m.Hall, m.Content, m.DecayFactor, m.Similarity)
 					}
 					fmt.Println()
 				}
 			}
 			continue
+		}
 
-		case ":skills":
+		if lower == ":skills" {
 			skillsDir := "./.agents/skills"
 			entries, err := os.ReadDir(skillsDir)
 			if err != nil {
@@ -83,7 +126,7 @@ func (c *CLIGateway) Start(ctx context.Context) error {
 			continue
 		}
 
-		fmt.Print("\n🤖 Antigravity > ")
+		fmt.Print("\n🤖 Agent > ")
 		events := make(chan engine.Event)
 		go c.engine.Chat(ctx, sessionID, input, "cli", events)
 
@@ -92,7 +135,7 @@ func (c *CLIGateway) Start(ctx context.Context) error {
 			case engine.EventText:
 				fmt.Print(ev.Content)
 			case engine.EventMemory:
-				fmt.Printf("\n[🧠 Recalled %d memories into context]\n", ev.Count)
+				fmt.Printf("\n[🏛️ Recalled %d memories from Palace into context]\n", ev.Count)
 			case engine.EventThought:
 				fmt.Printf("[%s]\n", ev.Content)
 			case engine.EventInsight:
@@ -101,7 +144,7 @@ func (c *CLIGateway) Start(ctx context.Context) error {
 				}
 			}
 		}
-		fmt.Println("\n")
+		fmt.Println()
 	}
 
 	return nil

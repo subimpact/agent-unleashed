@@ -11,16 +11,16 @@ import (
 	"strings"
 	"time"
 
-	"antigravity-unleashed/pkg/config"
-	"antigravity-unleashed/pkg/engine"
+	"agent-unleashed/pkg/config"
+	"agent-unleashed/pkg/engine"
 )
 
 type TelegramGateway struct {
-	engine   *engine.UnleashedEngine
-	cfg      config.TelegramGatewayConfig
-	client   *http.Client
-	offset   int64
-	apiBase  string
+	engine  *engine.UnleashedEngine
+	cfg     config.TelegramGatewayConfig
+	client  *http.Client
+	offset  int64
+	apiBase string
 }
 
 type TGUpdate struct {
@@ -131,16 +131,16 @@ func (t *TelegramGateway) Start(ctx context.Context) error {
 			sessionID := fmt.Sprintf("telegram_%d", chatID)
 
 			if text == "/start" {
-				t.sendMessage(chatID, "🚀 *Antigravity-Unleashed Online!* (Go Core)\nSend me any coding task or command.")
+				t.sendMessage(chatID, "🚀 *Agent-Unleashed Online!* (agt-ul Universal Go Core)\nSend me any coding task or command.")
 				continue
 			}
 
 			if text == "/memory" && t.engine.MemoryStore != nil {
-				mems, _ := t.engine.MemoryStore.GetRecentMemories(5)
+				stats, _ := t.engine.MemoryStore.GetStats()
 				var out strings.Builder
-				out.WriteString("🧠 Recent Memories:\n")
-				for _, m := range mems {
-					out.WriteString(fmt.Sprintf("• [%s] %s\n", m.Category, m.Content))
+				out.WriteString(fmt.Sprintf("🧠 Palace-Mnemosyne Memory (%d Total):\n", stats.TotalMemories))
+				for room, count := range stats.Rooms {
+					out.WriteString(fmt.Sprintf("• Room [%s]: %d drawers\n", room, count))
 				}
 				t.sendMessage(chatID, out.String())
 				continue

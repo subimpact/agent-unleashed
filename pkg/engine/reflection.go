@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"antigravity-unleashed/pkg/memory"
+	"agent-unleashed/pkg/memory"
 )
 
 type ReflectionEngine struct {
@@ -34,11 +34,11 @@ func (r *ReflectionEngine) Reflect(sessionID, userPrompt, responseText string, t
 	lower := strings.ToLower(userPrompt)
 	if strings.Contains(lower, "i prefer") || strings.Contains(lower, "always use") || strings.Contains(lower, "remember that") || strings.Contains(lower, "my name is") {
 		if r.memoryStore != nil {
-			id, err := r.memoryStore.AddMemory("preference", "User Preference: "+userPrompt, "reflection_auto", map[string]interface{}{
+			id, err := r.memoryStore.AddPalaceMemory("default", "preferences", "preference", "User Preference: "+userPrompt, "reflection_auto", map[string]interface{}{
 				"session_id": sessionID,
 			})
 			if err == nil {
-				insights = append(insights, fmt.Sprintf("Recorded preference memory (ID: %s)", id))
+				insights = append(insights, fmt.Sprintf("Recorded to Memory Palace (Room: preferences, ID: %s)", id))
 			}
 		}
 	}
@@ -57,7 +57,7 @@ func (r *ReflectionEngine) Reflect(sessionID, userPrompt, responseText string, t
 
 			content := fmt.Sprintf(`---
 name: %s
-description: Synthesized by Antigravity-Unleashed from task: %s
+description: Synthesized by Agent-Unleashed from task: %s
 ---
 
 # Workflow: %s

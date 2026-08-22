@@ -2,24 +2,60 @@ package main
 
 import (
 	"context"
-	"flag"
+	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"os/signal"
+	"strings"
 	"sync"
 	"syscall"
 
-	"antigravity-unleashed/pkg/config"
-	"antigravity-unleashed/pkg/engine"
-	"antigravity-unleashed/pkg/gateways"
+	"agent-unleashed/pkg/config"
+	"agent-unleashed/pkg/engine"
+	"agent-unleashed/pkg/gateways"
+	"agent-unleashed/pkg/wizard"
 )
 
 func main() {
-	configPath := flag.String("config", "config.yaml", "Path to configuration YAML file")
-	flag.Parse()
+	configPath := "config.yaml"
 
-	cfg, err := config.LoadConfig(*configPath)
+	// Subcommand routing
+	if len(os.Args) > 1 {
+		subcmd := os.Args[1]
+
+		switch subcmd {
+		case "setup", "config":
+			if err := wizard.RunSetupWizard(configPath); err != nil {
+				log.Fatalf("Setup failed: %v", err)
+			}
+			return
+
+		case "status":
+			runStatusReport(configPath)
+			return
+
+		case "memory":
+			runMemoryReport(configPath)
+			return
+
+		case "hook-memory":
+			runHookMemory(configPath)
+			return
+
+		case "hook-reflect":
+			runHookReflect(configPath)
+			return
+
+		case "--help", "-h", "help":
+			printHelp()
+			return
+		}
+	}
+
+	// Default: Run Master Daemon & Interactive REPL
+	cfg, err := config.LoadConfig(configPath)
 	if err != nil {
 		log.Fatalf("❌ Failed to load config: %v", err)
 	}
@@ -28,12 +64,14 @@ func main() {
 	if err != nil {
 		log.Fatalf("❌ Failed to initialize engine: %v", err)
 	}
-	defer eng.MemoryStore.Close()
+	if eng.MemoryStore != nil {
+		defer eng.MemoryStore.Close()
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// Handle graceful shutdown
+	// Signal Trapping for Graceful Shutdown
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 	go func() {
@@ -68,18 +106,186 @@ func main() {
 		}()
 	}
 
-	// 3. CLI Gateway (Runs in foreground if enabled)
+	// 3. Discord Gateway
+	if cfg.Gateways.Discord.Enabled && cfg.Gateways.Discord.BotToken != "" {
+		wg.Add(1)
+		dcGW := gateways.NewDiscordGateway(eng, cfg.Gateways.Discord)
+		go func() {
+			defer wg.Done()
+			if err := dcGW.Start(ctx); err != nil {
+				log.Printf("[Discord Gateway] Error: %v\n", err)
+			}
+		}()
+	}
+
+	// 4. CLI Gateway (Foreground)
 	if cfg.Gateways.CLI.Enabled {
 		cliGW := gateways.NewCLIGateway(eng)
 		if err := cliGW.Start(ctx); err != nil {
 			log.Printf("[CLI Gateway] Error: %v\n", err)
 		}
-		cancel() // If CLI exits, cancel daemon context
+		cancel()
 	} else {
-		log.Println("[Daemon] Running in headless 24/7 background mode.")
+		log.Println("[Daemon] Running in headless 24/7 background mode. Press Ctrl+C to stop.")
 		<-ctx.Done()
 	}
 
 	wg.Wait()
-	fmt.Println("✅ Antigravity-Unleashed shutdown complete.")
+	fmt.Println("✅ Agent-Unleashed shutdown complete.")
+}
+
+func printHelp() {
+	fmt.Println("Agent-Unleashed (agt-ul) - Universal Go Agent Harness & Gateway")
+	fmt.Println("\nUsage:")
+	fmt.Println("  agt-ul               Start interactive REPL & 24/7 daemon")
+	fmt.Println("  agt-ul setup         Run interactive setup wizard")
+	fmt.Println("  agt-ul status        Display detected CLI tools & system diagnostics")
+	fmt.Println("  agt-ul memory        Inspect Palace-Mnemosyne memory stats")
+	fmt.Println("  agt-ul hook-memory   Antigravity PreInvocation lifecycle hook")
+	fmt.Println("  agt-ul hook-reflect  Antigravity Stop lifecycle hook")
+}
+
+func runStatusReport(configPath string) {
+	cfg, err := config.LoadConfig(configPath)
+	if err != nil {
+		log.Fatalf("Error: %v", err)
+	}
+
+	eng, err := engine.NewUnleashedEngine(cfg)
+	if err != nil {
+		log.Fatalf("Engine error: %v", err)
+	}
+	defer eng.MemoryStore.Close()
+
+	fmt.Println("\n============================================================")
+	fmt.Println("  📊 AGENT-UNLEASHED (agt-ul) SYSTEM STATUS REPORT")
+	fmt.Println("============================================================")
+	fmt.Printf("Agent Name: %s\n", cfg.System.AgentName)
+	fmt.Printf("Active Driver: %s\n\n", eng.GetActiveDriverName())
+
+	fmt.Println("🔍 Installed AI CLI Tools:")
+	for _, a := range eng.Registry.ListAll() {
+		detected := a.Detect()
+		status := "❌ Not Installed"
+		if detected {
+			status = fmt.Sprintf("✅ Active (%s)", a.BinaryPath())
+		}
+		fmt.Printf("  • %-35s : %s\n", a.DisplayName(), status)
+	}
+
+	fmt.Println("\n🌐 Active 24/7 Gateways:")
+	fmt.Printf("  • Interactive CLI : %v\n", cfg.Gateways.CLI.Enabled)
+	fmt.Printf("  • Telegram Bot    : %v\n", cfg.Gateways.Telegram.Enabled)
+	fmt.Printf("  • Discord Bot     : %v\n", cfg.Gateways.Discord.Enabled)
+	fmt.Printf("  • REST API        : %v (http://%s:%d)\n", cfg.Gateways.RESTAPI.Enabled, cfg.Gateways.RESTAPI.Host, cfg.Gateways.RESTAPI.Port)
+
+	stats, _ := eng.MemoryStore.GetStats()
+	fmt.Println("\n🏛️ Palace-Mnemosyne Memory:")
+	fmt.Printf("  • Total Drawers   : %d\n", stats.TotalMemories)
+	for room, count := range stats.Rooms {
+		fmt.Printf("    🚪 Room [%s]: %d drawers\n", room, count)
+	}
+	fmt.Println()
+}
+
+func runMemoryReport(configPath string) {
+	cfg, err := config.LoadConfig(configPath)
+	if err != nil {
+		log.Fatalf("Error: %v", err)
+	}
+	eng, err := engine.NewUnleashedEngine(cfg)
+	if err != nil {
+		log.Fatalf("Engine error: %v", err)
+	}
+	defer eng.MemoryStore.Close()
+
+	stats, _ := eng.MemoryStore.GetStats()
+	fmt.Println("\n🏛️ Palace-Mnemosyne Memory Palace Hierarchy:")
+	fmt.Printf("Total Factual Drawers: %d\n\n", stats.TotalMemories)
+	for room, count := range stats.Rooms {
+		fmt.Printf("  🚪 Room [%s] (%d entries):\n", room, count)
+		mems, _ := eng.MemoryStore.SearchMemories("", room, 3, 0.0)
+		for _, m := range mems {
+			fmt.Printf("     • [%s] %s (decay: %.2f)\n", m.Hall, m.Content, m.DecayFactor)
+		}
+	}
+	fmt.Println()
+}
+
+func runHookMemory(configPath string) {
+	raw, err := io.ReadAll(os.Stdin)
+	if err != nil || len(raw) == 0 {
+		fmt.Println(`{"injectSteps": []}`)
+		return
+	}
+
+	cfg, _ := config.LoadConfig(configPath)
+	eng, err := engine.NewUnleashedEngine(cfg)
+	if err != nil || eng.MemoryStore == nil {
+		fmt.Println(`{"injectSteps": []}`)
+		return
+	}
+	defer eng.MemoryStore.Close()
+
+	recent, err := eng.MemoryStore.GetRecentMemories(3)
+	if err != nil || len(recent) == 0 {
+		fmt.Println(`{"injectSteps": []}`)
+		return
+	}
+
+	var lines []string
+	for _, m := range recent {
+		lines = append(lines, fmt.Sprintf("- [%s:%s] %s", m.Room, m.Hall, m.Content))
+	}
+
+	injectedMsg := fmt.Sprintf("🏛️ [Palace-Mnemosyne Memory]:\n%s", strings.Join(lines, "\n"))
+	outJSON, _ := json.Marshal(map[string]interface{}{
+		"injectSteps": []map[string]string{
+			{"ephemeralMessage": injectedMsg},
+		},
+	})
+	fmt.Println(string(outJSON))
+}
+
+func runHookReflect(configPath string) {
+	raw, err := io.ReadAll(os.Stdin)
+	if err != nil || len(raw) == 0 {
+		fmt.Println(`{}`)
+		return
+	}
+
+	var payload map[string]interface{}
+	_ = json.Unmarshal(raw, &payload)
+
+	cfg, _ := config.LoadConfig(configPath)
+	eng, err := engine.NewUnleashedEngine(cfg)
+	if err != nil || eng.MemoryStore == nil {
+		fmt.Println(`{}`)
+		return
+	}
+	defer eng.MemoryStore.Close()
+
+	convID, _ := payload["conversationId"].(string)
+	if convID == "" {
+		convID = "unknown"
+	}
+	if len(convID) > 8 {
+		convID = convID[:8]
+	}
+
+	termReason, _ := payload["terminationReason"].(string)
+	if termReason == "" {
+		termReason = "completed"
+	}
+
+	_, _ = eng.MemoryStore.AddPalaceMemory(
+		"default",
+		"lessons",
+		"lesson",
+		fmt.Sprintf("Completed task in conversation %s with status '%s'.", convID, termReason),
+		"antigravity_stop_hook",
+		payload,
+	)
+
+	fmt.Println(`{}`)
 }

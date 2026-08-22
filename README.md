@@ -1,68 +1,88 @@
-# 🚀 Antigravity-Unleashed (Go High-Performance Core)
+# 🚀 Agent-Unleashed (`agt-ul`)
 
-> **Autonomous 24/7 Agent Daemon & Multi-Channel Gateway for Antigravity (Written in Pure Go)**
+> **The Universal 24/7 Agent Meta-Harness & Gateway Operating System (Written in Pure Go)**
 
-`antigravity-unleashed` is a compiled, single-binary autonomous AI agent framework designed for Google Antigravity. It delivers Hermes & OpenClaw-grade autonomy, 24/7 messaging gateways, persistent SQLite hybrid vector memory, and self-learning capabilities with an ultra-low memory footprint (<15MB RAM).
+`agent-unleashed` (`agt-ul`) turns **any local AI CLI tool** (Google Antigravity `agy`, Claude Code `claude`, `aider`, `hermes`, `ollama`, or Cloud APIs) into a 24/7 autonomous, self-learning, multi-channel bot with persistent cognitive memory palace.
 
 ---
 
-## 🌟 Key Architecture & Features
+## 🌟 Key Architecture & Superpowers
 
 ```mermaid
 graph TD
-    User([Telegram / Discord / CLI / Webhook]) -->|24/7 Remote Requests| Daemon[Go Master Daemon]
+    User([Telegram / Discord / CLI / Webhook / Hooks]) -->|Requests| Daemon[agt-ul Universal Go Master Daemon]
     
-    subgraph Antigravity-Unleashed (Single Binary .exe)
-        Daemon --> Engine[Engine Controller]
-        Engine --> Tools[Go Tool Runner: Shell / File I/O / Search]
-        
-        subgraph Superpowers
-            Engine <-->|Hybrid FTS5 + Cosine Vector RAG| Memory[(SQLite Memory)]
-            Engine -->|Self-Reflection Loop| Reflection[Skill Synthesizer]
-            Reflection -->|Autonomously Authors| Skills[Antigravity .agents/skills/ Directory]
-        end
-        
-        Engine -->|Zero-API-Key Direct Bridge| AgyCLI[Local agy.exe CLI Session]
+    Daemon --> Router[Universal CLI Adapter & Model Router]
+
+    subgraph Zero-API-Key Local CLI Sessions
+        Router --> Agy[Google Antigravity: agy]
+        Router --> Claude[Claude Code: claude]
+        Router --> Aider[Aider CLI: aider]
+        Router --> Ollama[Local Ollama: ollama]
+        Router --> Hermes[Hermes CLI: hermes]
+    end
+
+    subgraph Optional Cloud API Fallback
+        Router -.-> CloudAPI[OpenRouter / Gemini / Claude API]
+    end
+
+    subgraph Palace-Mnemosyne Unified Memory
+        Router <-->|Spatial Loci + FTS5 + Vector| Palace[(SQLite Memory Palace)]
+        Palace --> Decay[Ebbinghaus Temporal Decay Engine]
+        Router -->|Metacognition Reflection| Synthesizer[Dynamic Skill Synthesizer]
+        Synthesizer -->|Writes SKILL.md| SkillsRepo[.agents/skills/]
+    end
+
+    subgraph 24/7 Multi-Channel Gateways
+        Daemon --> CLI_GW[Interactive CLI REPL]
+        Daemon --> TG_GW[Telegram Bot with Live Streaming]
+        Daemon --> DC_GW[Discord Gateway]
+        Daemon --> REST_GW[REST API & Webhooks]
     end
 ```
 
-### 1. ⚡ Pure Go Single-Binary Architecture
-- **Ultra-Fast & Lightweight:** Compiled native binary with <10ms cold start and ~15MB RAM footprint.
-- **Zero Dependencies:** Pure Go embedded SQLite (`modernc.org/sqlite`) requiring no CGO or Python runtime.
+### 1. 🔌 Universal Pluggable CLI Adapters
+* Automatically detects all authenticated AI tools on your system (`agy`, `claude`, `aider`, `ollama`, `api`).
+* Routes prompts to your favorite CLI tool with **Zero API Keys required**.
+* Switch drivers dynamically in chat with `:driver <name>` (e.g. `:driver claude`, `:driver agy`, `:driver ollama`).
 
-### 2. 🌐 24/7 Multi-Channel Gateways
-- **Interactive CLI REPL:** Fast terminal interface with `:memory` and `:skills` inspectors.
-- **Telegram Bot:** Background polling listener supporting live updates and auto-fallback markdown.
-- **Discord Bot / Webhooks:** Multi-user team channel and DM pair programming.
-- **REST API:** High-throughput HTTP server on port `8080` for CI/CD and cron triggers.
+### 2. 🏛️ Palace-Mnemosyne Cognitive Memory Engine
+* **Spatial Hierarchy (MemPalace):** Organizes memory into **Wings** (Projects) $\rightarrow$ **Rooms** (Domains like `preferences`, `architecture`, `api`) $\rightarrow$ **Drawers** (Verbatim factual records).
+* **Cognitive Decay (Mnemosyne):** Emulates human memory with Ebbinghaus decay ($R = e^{-\lambda \Delta t}$) and spaced-repetition reinforcement boosts.
+* **Hybrid Precision RAG:** Blends SQLite FTS5 full-text keyword indexing with 384-dimensional cosine vector embeddings.
 
-### 3. 🧠 Hybrid RAG Persistent Memory
-- Combines **SQLite FTS5 full-text keyword indexing** with **384-dimensional cosine vector embeddings** for precision recall across all sessions.
+### 3. 🌐 24/7 Multi-Channel Gateways
+* **Interactive CLI REPL:** Fast terminal interface with driver badges, `:drivers`, `:memory`, `:skills`.
+* **Telegram Bot:** Background polling listener with real-time status and markdown safety.
+* **Discord Bot:** Mention and DM pair programming for teams.
+* **REST API:** High-performance HTTP server on port `8080` for CI/CD and webhook triggers.
 
-### 4. 🪝 Native Antigravity Integration (Zero-API-Key)
-- Directly executes through your local `agy.exe` binary with `--effort=high` and `--dangerously-skip-permissions`.
-- Auto-authors standard `.agents/skills/<name>/SKILL.md` runbooks on task completion.
+### 4. 🧙 Interactive Setup Wizard (`agt-ul setup`)
+* Auto-scans your system for installed AI tools and guides you through setting up tokens and drivers in seconds.
 
 ---
 
-## 📦 Building & Running
+## 📦 Commands & Usage
 
-### 1. Build from Source
+### 1. Launch Interactive Daemon / REPL
 ```bash
-cd antigravity-unleashed
-go build -o agy-ul.exe .
+agt-ul
+```
+*(Alias `agy-ul` is also supported)*
+
+### 2. Interactive Setup Wizard
+```bash
+agt-ul setup
 ```
 
-### 2. Global Installation
-Copy `agy-ul.exe` to your `agy/bin` directory (or any PATH directory):
-```powershell
-Copy-Item .\agy-ul.exe "$env:LOCALAPPDATA\agy\bin\agy-ul.exe"
+### 3. System Status & Detected Tools
+```bash
+agt-ul status
 ```
 
-### 3. Launch from Anywhere
-From any terminal window:
+### 4. Memory Palace Inspector
 ```bash
-agy-ul
+agt-ul memory
 ```
 
 ---
@@ -70,22 +90,36 @@ agy-ul
 ## 📁 Repository Structure
 
 ```text
-antigravity-unleashed/
-├── main.go                         # Master daemon entry point
+agent-unleashed/
+├── main.go                         # Master CLI subcommand router & daemon
 ├── config.yaml                     # Active configuration
 ├── config.yaml.example             # Configuration template
 ├── go.mod / go.sum                 # Go module definitions
 ├── .agents/
-│   ├── hooks.json                  # Antigravity lifecycle hooks
+│   ├── hooks.json                  # Antigravity lifecycle hooks (agt-ul hook-memory)
 │   ├── rules/                      # Operational rules
 │   └── skills/                     # Self-authored skills
 ├── data/
-│   └── memory.sqlite               # Persistent SQLite + vector store
+│   └── memory.sqlite               # Persistent Palace-Mnemosyne SQLite store
 └── pkg/
+    ├── adapters/                   # Pluggable CLI adapters (agy, claude, aider, ollama, api)
     ├── config/                     # YAML loader with env expansion
-    ├── memory/                     # Hybrid FTS5 + Vector Cosine SQLite store
-    ├── engine/                     # agy.exe subprocess runner, tools, reflection
-    └── gateways/                   # CLI REPL, Telegram Bot, REST API
+    ├── memory/                     # Palace-Mnemosyne spatial + decay hybrid store
+    ├── engine/                     # Universal router, tools, reflection
+    ├── gateways/                   # CLI REPL, Telegram, Discord, REST API
+    └── wizard/                     # Interactive terminal setup wizard
+```
+
+---
+
+## 🧪 Running Tests & Compiling
+
+```bash
+# Run full automated test suite
+go test -v ./pkg/...
+
+# Build static binary
+go build -v -o agt-ul.exe .
 ```
 
 ---

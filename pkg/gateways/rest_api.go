@@ -8,8 +8,8 @@ import (
 	"net/http"
 	"strings"
 
-	"antigravity-unleashed/pkg/config"
-	"antigravity-unleashed/pkg/engine"
+	"agent-unleashed/pkg/config"
+	"agent-unleashed/pkg/engine"
 )
 
 type RESTAPIGateway struct {
@@ -43,7 +43,7 @@ func (r *RESTAPIGateway) Start(ctx context.Context) error {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]string{
 			"status": "online",
-			"agent":  "Antigravity-Unleashed (Go)",
+			"agent":  "Agent-Unleashed (agt-ul Universal Go)",
 		})
 	})
 

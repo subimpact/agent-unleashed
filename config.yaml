@@ -1,32 +1,44 @@
 # ==============================================================================
-# Antigravity-Unleashed Configuration
-# Autonomous 24/7 Agent Daemon & Multi-Channel Gateway for Antigravity
+# Agent-Unleashed (agt-ul) Configuration
+# Universal 24/7 Agent Gateway & Palace-Mnemosyne Memory Harness
 # ==============================================================================
 
 system:
-  agent_name: "Antigravity-Unleashed"
+  agent_name: "Agent-Unleashed"
   workspace_dir: "."
   data_dir: "./data"
   skills_dir: "./.agents/skills"
   log_level: "INFO"
 
-# LLM Backend Configuration
-# Directly powered by your existing local Antigravity CLI (agy) — NO API KEY NEEDED!
+# Primary Agent Driver & Pluggable CLI Adapters
+# Options: 'auto' (Auto-detects installed AI CLIs), 'agy', 'claude', 'aider', 'hermes', 'ollama', 'api'
 model:
-  provider: "agy"                  # Options: 'agy' (Primary), 'ollama' (Local), 'gemini'
-  agy_binary_path: null            # Path to agy.exe (null auto-detects from PATH or AppData)
+  driver: "auto"
   effort: "high"                   # Reasoning effort: 'low', 'medium', 'high'
-  auto_approve_tools: true         # Automatically execute tools without blocking (--dangerously-skip-permissions)
+  auto_approve_tools: true         # Automatically execute tools without blocking
   model_name: "auto"
-  api_key: ""
+  ollama_endpoint: "http://localhost:11434"
+  
+  # Optional explicit paths if not in standard PATH
+  agy_binary_path: ""
+  claude_binary_path: ""
+  aider_binary_path: ""
+  hermes_binary_path: ""
 
-# Long-Term Persistent Memory (Semantic Vector + SQLite)
+  # Optional Cloud API Fallback Keys
+  gemini_api_key: ""
+  openrouter_api_key: ""
+  anthropic_api_key: ""
+  openai_api_key: ""
+
+# Palace-Mnemosyne Cognitive Memory Engine
 memory:
   enabled: true
   db_path: "./data/memory.sqlite"
   vector_dimension: 384
-  similarity_threshold: 0.65
+  similarity_threshold: 0.40
   max_context_memories: 5
+  decay_half_life_days: 30.0       # Half-life for temporal memory decay (in days)
   auto_ingest_conversations: true
 
 # Autonomous Self-Reflection & Skill Learning
@@ -36,7 +48,7 @@ reflection:
   auto_extract_facts: true
   min_tool_steps_for_reflection: 2
 
-# Messaging Gateways (Enable the channels you want to run 24/7)
+# 24/7 Messaging Gateways
 gateways:
   cli:
     enabled: true

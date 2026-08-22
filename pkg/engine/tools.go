@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"antigravity-unleashed/pkg/memory"
+	"agent-unleashed/pkg/memory"
 )
 
 type ToolResult struct {
@@ -43,7 +43,6 @@ func (t *ToolRunner) RunCommand(cmdStr string) ToolResult {
 
 	var cmd *exec.Cmd
 	if os.PathSeparator == '\\' {
-		// Windows
 		cmd = exec.CommandContext(ctx, "powershell", "-NoProfile", "-Command", cmdStr)
 	} else {
 		cmd = exec.CommandContext(ctx, "sh", "-c", cmdStr)

@@ -17,22 +17,30 @@ type SystemConfig struct {
 }
 
 type ModelConfig struct {
-	Provider         string  `yaml:"provider"`
-	AgyBinaryPath    string  `yaml:"agy_binary_path"`
-	Effort           string  `yaml:"effort"`
-	AutoApproveTools bool    `yaml:"auto_approve_tools"`
-	ModelName        string  `yaml:"model_name"`
-	APIKey           string  `yaml:"api_key"`
+	Driver           string  `yaml:"driver"`             // 'auto', 'agy', 'claude', 'aider', 'hermes', 'ollama', 'api'
+	AgyBinaryPath    string  `yaml:"agy_binary_path"`    // Optional explicit path to agy
+	ClaudeBinaryPath string  `yaml:"claude_binary_path"` // Optional explicit path to claude
+	AiderBinaryPath  string  `yaml:"aider_binary_path"`  // Optional explicit path to aider
+	HermesBinaryPath string  `yaml:"hermes_binary_path"` // Optional explicit path to hermes
+	Effort           string  `yaml:"effort"`             // 'low', 'medium', 'high'
+	AutoApproveTools bool    `yaml:"auto_approve_tools"` // Auto-approve permissions where supported
+	ModelName        string  `yaml:"model_name"`         // Model override (e.g., 'gemini-2.5-pro', 'claude-3-7-sonnet', 'hermes3')
+	OllamaEndpoint   string  `yaml:"ollama_endpoint"`    // Default: 'http://localhost:11434'
+	GeminiAPIKey     string  `yaml:"gemini_api_key"`
+	OpenRouterAPIKey string  `yaml:"openrouter_api_key"`
+	AnthropicAPIKey  string  `yaml:"anthropic_api_key"`
+	OpenAIAPIKey     string  `yaml:"openai_api_key"`
 	Temperature      float64 `yaml:"temperature"`
 	MaxOutputTokens  int     `yaml:"max_output_tokens"`
 }
 
-type MemoryConfig struct {
+type PalaceMemoryConfig struct {
 	Enabled                 bool    `yaml:"enabled"`
 	DBPath                  string  `yaml:"db_path"`
 	VectorDimension         int     `yaml:"vector_dimension"`
 	SimilarityThreshold     float64 `yaml:"similarity_threshold"`
 	MaxContextMemories      int     `yaml:"max_context_memories"`
+	DecayHalfLifeDays       float64 `yaml:"decay_half_life_days"` // Half-life for temporal decay (default: 30 days)
 	AutoIngestConversations bool    `yaml:"auto_ingest_conversations"`
 }
 
@@ -76,11 +84,11 @@ type GatewaysConfig struct {
 }
 
 type AppConfig struct {
-	System     SystemConfig     `yaml:"system"`
-	Model      ModelConfig      `yaml:"model"`
-	Memory     MemoryConfig     `yaml:"memory"`
-	Reflection ReflectionConfig `yaml:"reflection"`
-	Gateways   GatewaysConfig   `yaml:"gateways"`
+	System     SystemConfig       `yaml:"system"`
+	Model      ModelConfig        `yaml:"model"`
+	Memory     PalaceMemoryConfig `yaml:"memory"`
+	Reflection ReflectionConfig   `yaml:"reflection"`
+	Gateways   GatewaysConfig     `yaml:"gateways"`
 }
 
 func expandEnv(content string) string {
@@ -94,24 +102,26 @@ func expandEnv(content string) string {
 func LoadConfig(configPath string) (*AppConfig, error) {
 	cfg := &AppConfig{
 		System: SystemConfig{
-			AgentName:    "Antigravity-Unleashed",
+			AgentName:    "Agent-Unleashed",
 			WorkspaceDir: ".",
 			DataDir:      "./data",
 			SkillsDir:    "./.agents/skills",
 			LogLevel:     "INFO",
 		},
 		Model: ModelConfig{
-			Provider:         "agy",
+			Driver:           "auto",
 			Effort:           "high",
 			AutoApproveTools: true,
 			ModelName:        "auto",
+			OllamaEndpoint:   "http://localhost:11434",
 		},
-		Memory: MemoryConfig{
+		Memory: PalaceMemoryConfig{
 			Enabled:             true,
 			DBPath:              "./data/memory.sqlite",
 			VectorDimension:     384,
-			SimilarityThreshold: 0.50,
+			SimilarityThreshold: 0.40,
 			MaxContextMemories:  5,
+			DecayHalfLifeDays:   30.0,
 		},
 		Reflection: ReflectionConfig{
 			Enabled:                   true,
@@ -144,11 +154,18 @@ func LoadConfig(configPath string) (*AppConfig, error) {
 		return nil, err
 	}
 
-	// Ensure absolute or clean paths
 	if cfg.System.WorkspaceDir == "" {
 		cfg.System.WorkspaceDir = "."
 	}
 	cfg.System.WorkspaceDir, _ = filepath.Abs(cfg.System.WorkspaceDir)
 
 	return cfg, nil
+}
+
+func SaveConfig(configPath string, cfg *AppConfig) error {
+	data, err := yaml.Marshal(cfg)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(configPath, data, 0644)
 }

@@ -4,7 +4,7 @@
     "PreInvocation": [
       {
         "type": "command",
-        "command": "python ./scripts/hook_memory_inject.py",
+        "command": "agt-ul hook-memory",
         "timeout": 10
       }
     ]
@@ -14,7 +14,7 @@
     "Stop": [
       {
         "type": "command",
-        "command": "python ./scripts/hook_stop_reflect.py",
+        "command": "agt-ul hook-reflect",
         "timeout": 10
       }
     ]

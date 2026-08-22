@@ -1,4 +1,4 @@
-module antigravity-unleashed
+module agent-unleashed
 
 go 1.19
 

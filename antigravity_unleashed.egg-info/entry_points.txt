@@ -1,3 +1,0 @@
-[console_scripts]
-agy-ul = src.daemon:main
-antigravity-unleashed = src.daemon:main

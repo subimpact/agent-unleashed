@@ -1,8 +1,0 @@
-README.md
-setup.py
-antigravity_unleashed.egg-info/PKG-INFO
-antigravity_unleashed.egg-info/SOURCES.txt
-antigravity_unleashed.egg-info/dependency_links.txt
-antigravity_unleashed.egg-info/entry_points.txt
-antigravity_unleashed.egg-info/requires.txt
-antigravity_unleashed.egg-info/top_level.txt
