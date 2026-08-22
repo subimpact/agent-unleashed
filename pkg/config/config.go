@@ -13,6 +13,7 @@ type SystemConfig struct {
 	WorkspaceDir string `yaml:"workspace_dir"`
 	DataDir      string `yaml:"data_dir"`
 	SkillsDir    string `yaml:"skills_dir"`
+	Theme        string `yaml:"theme"` // 'kinetic', 'dracula', 'matrix', 'catppuccin', 'nord', 'amber'
 	LogLevel     string `yaml:"log_level"`
 }
 
@@ -122,6 +123,7 @@ func LoadConfig(configPath string) (*AppConfig, error) {
 			WorkspaceDir: ".",
 			DataDir:      "./data",
 			SkillsDir:    "./.agents/skills",
+			Theme:        "kinetic",
 			LogLevel:     "INFO",
 		},
 		Model: ModelConfig{

@@ -11,25 +11,34 @@ import (
 	"agent-unleashed/pkg/cron"
 	"agent-unleashed/pkg/doctor"
 	"agent-unleashed/pkg/engine"
+	"agent-unleashed/pkg/theme"
 	"agent-unleashed/pkg/updater"
 )
 
 type CLIGateway struct {
 	engine *engine.UnleashedEngine
 	cronEng *cron.CronEngine
+	themeEng *theme.ThemeEngine
 }
 
 func NewCLIGateway(eng *engine.UnleashedEngine, ce *cron.CronEngine) *CLIGateway {
-	return &CLIGateway{engine: eng, cronEng: ce}
+	return &CLIGateway{
+		engine: eng,
+		cronEng: ce,
+		themeEng: theme.GetThemeEngine(),
+	}
 }
 
 func (c *CLIGateway) Start(ctx context.Context) error {
-	fmt.Println("\n================================================================================")
-	fmt.Println("  🚀 AGENT-UNLEASHED (agt-ul) Universal Agent Harness & Gateway")
-	fmt.Println("  Palace-Mnemosyne Memory | Multi-CLI Orchestration | Live Context Dashboard")
-	fmt.Println("================================================================================")
-	fmt.Printf("Active Driver: [%s] | Verbose: [%v] | Type ':help' for commands, ':exit' to quit.\n\n",
-		c.engine.GetActiveDriverName(), c.engine.IsVerbose())
+	t := c.themeEng.Active()
+	fmt.Printf("\n%s================================================================================%s\n", t.Primary, theme.Reset)
+	fmt.Printf("  %s🚀 AGENT-UNLEASHED (agt-ul)%s %sUniversal Agent Operating System & Gateway%s\n", t.Secondary, theme.Reset, t.Accent, theme.Reset)
+	fmt.Printf("  %sPalace-Mnemosyne Memory | Multi-CLI Orchestration | Live Context Dashboard%s\n", t.Muted, theme.Reset)
+	fmt.Printf("%s================================================================================%s\n", t.Primary, theme.Reset)
+	fmt.Printf("Active Driver: %s[%s]%s | Theme: %s[%s]%s | Verbose: %s[%v]%s | Type ':help' for commands, ':exit' to quit.\n\n",
+		t.Secondary, c.engine.GetActiveDriverName(), theme.Reset,
+		t.Accent, t.Name, theme.Reset,
+		t.Warning, c.engine.IsVerbose(), theme.Reset)
 
 	reader := bufio.NewReader(os.Stdin)
 	sessionID := "cli_main"
@@ -41,12 +50,13 @@ func (c *CLIGateway) Start(ctx context.Context) error {
 		default:
 		}
 
+		t = c.themeEng.Active()
 		driverBadge := c.engine.GetActiveDriverName()
 		if c.engine.IsVerbose() {
 			driverBadge += "-verbose"
 		}
 
-		fmt.Printf("👤 You [%s] > ", driverBadge)
+		fmt.Printf("%s👤 You [%s] > %s", t.UserPrompt, driverBadge, theme.Reset)
 		input, err := reader.ReadString('\n')
 		if err != nil {
 			break
@@ -139,6 +149,11 @@ func (c *CLIGateway) Start(ctx context.Context) error {
 			continue
 		}
 
+		if strings.HasPrefix(lower, ":theme") || lower == ":themes" {
+			c.handleThemeCommand(input)
+			continue
+		}
+
 		if strings.HasPrefix(lower, ":wiki") {
 			c.handleWikiCommand(input)
 			continue
@@ -159,7 +174,8 @@ func (c *CLIGateway) Start(ctx context.Context) error {
 			continue
 		}
 
-		fmt.Print("\n🤖 Agent > ")
+		t = c.themeEng.Active()
+		fmt.Printf("\n%s🤖 Agent > %s", t.AgentPrompt, theme.Reset)
 		events := make(chan engine.Event)
 		go c.engine.Chat(ctx, sessionID, input, "cli", events)
 
@@ -171,21 +187,21 @@ func (c *CLIGateway) Start(ctx context.Context) error {
 				fmt.Print(ev.Content)
 
 			case engine.EventMemory:
-				fmt.Printf("\n[🏛️ Recalled %d memories from Palace into context]\n", ev.Count)
+				fmt.Printf("\n%s[🏛️ Recalled %d memories from Palace into context]%s\n", t.MemoryTag, ev.Count, theme.Reset)
 				if c.engine.IsVerbose() {
 					for _, m := range ev.Memories {
-						fmt.Printf("   ├─ %s\n", m)
+						fmt.Printf("   %s├─ %s%s\n", t.Muted, m, theme.Reset)
 					}
 				}
 
 			case engine.EventThought:
 				if c.engine.IsVerbose() {
-					fmt.Printf("[%s]\n", ev.Content)
+					fmt.Printf("%s[%s]%s\n", t.Muted, ev.Content, theme.Reset)
 				}
 
 			case engine.EventInsight:
 				for _, ins := range ev.Insights {
-					fmt.Printf("\n[✨ Self-Learning: %s]\n", ins)
+					fmt.Printf("\n%s[✨ Self-Learning: %s]%s\n", t.Accent, ins, theme.Reset)
 				}
 
 			case engine.EventUsage:
@@ -194,7 +210,7 @@ func (c *CLIGateway) Start(ctx context.Context) error {
 		}
 		fmt.Println()
 
-		// Render Bottom Live Context / Console Bar
+		// Render Themed Bottom Live Context / Console Bar
 		if lastStats != nil {
 			c.renderBottomConsoleBar(lastStats)
 		} else {
@@ -210,6 +226,7 @@ func (c *CLIGateway) Start(ctx context.Context) error {
 }
 
 func (c *CLIGateway) renderBottomConsoleBar(stats *adapters.ExecutionResult) {
+	t := c.themeEng.Active()
 	used := stats.TotalTokens
 	limit := stats.ContextLimit
 	if limit <= 0 {
@@ -222,23 +239,27 @@ func (c *CLIGateway) renderBottomConsoleBar(stats *adapters.ExecutionResult) {
 	pctUsed := float64(used) / float64(limit) * 100.0
 	pctLeft := 100.0 - pctUsed
 
-	fmt.Println("────────────────────────────────────────────────────────────────────────────────")
-	fmt.Printf("📊 [Context: %s / %s tok (%.1f%% left) | In: %d | Out: %d",
-		formatNumber(used), formatNumber(limit), pctLeft, stats.InputTokens, stats.OutputTokens)
+	fmt.Printf("%s────────────────────────────────────────────────────────────────────────────────%s\n", t.Muted, theme.Reset)
+	fmt.Printf("📊 %s[Context: %s / %s tok (%.1f%% left)%s | %sIn: %d%s | %sOut: %d%s",
+		t.TelemetryTag, formatNumber(used), formatNumber(limit), pctLeft, theme.Reset,
+		t.Secondary, stats.InputTokens, theme.Reset,
+		t.Accent, stats.OutputTokens, theme.Reset)
 
 	if stats.ThinkingTokens > 0 {
-		fmt.Printf(" | Think: %d", stats.ThinkingTokens)
+		fmt.Printf(" | %sThink: %d%s", t.Warning, stats.ThinkingTokens, theme.Reset)
 	}
 	if stats.CacheReadTokens > 0 {
-		fmt.Printf(" | Cache: %d", stats.CacheReadTokens)
+		fmt.Printf(" | %sCache: %d%s", t.Success, stats.CacheReadTokens, theme.Reset)
 	}
 
-	fmt.Printf(" | Time: %.2fs | Driver: %s]\n", stats.DurationSeconds, c.engine.GetActiveDriverName())
+	fmt.Printf(" | %sTime: %.2fs%s | %sDriver: %s%s]\n",
+		t.Warning, stats.DurationSeconds, theme.Reset,
+		t.Primary, c.engine.GetActiveDriverName(), theme.Reset)
 
 	if c.engine.IsVerbose() && stats.RawCommand != "" {
-		fmt.Printf("🔍 [Command Executed: %s]\n", stats.RawCommand)
+		fmt.Printf("%s🔍 [Command Executed: %s]%s\n", t.Muted, stats.RawCommand, theme.Reset)
 	}
-	fmt.Println("────────────────────────────────────────────────────────────────────────────────")
+	fmt.Printf("%s────────────────────────────────────────────────────────────────────────────────%s\n", t.Muted, theme.Reset)
 }
 
 func (c *CLIGateway) printContextDashboard() {
@@ -392,15 +413,41 @@ func (c *CLIGateway) printHelp() {
 	fmt.Println("  :profile        - View & manage dialectic user persona & coding profile")
 	fmt.Println("  :wiki           - Browse or search project LLM-Wiki knowledge graph (:wiki list/read/search)")
 	fmt.Println("  :lcm            - Lossless Context Management DAG inspector (:lcm describe/grep/expand)")
+	fmt.Println("  :theme          - Switch terminal color theme (:theme kinetic/dracula/matrix/catppuccin/nord/amber)")
 	fmt.Println("  :cron           - List or manage 24/7 background scheduled tasks (:cron list/add/remove)")
 	fmt.Println("  :stats          - View session execution diagnostics and token metrics")
 	fmt.Println("  :drivers        - List all detected AI CLI tools on this system")
-	fmt.Println("  :driver <name>  - Switch active driver (e.g. ':driver agy', ':driver claude')")
+	fmt.Println("  :driver <name>  - Switch active driver (e.g. ':driver agy', ':driver claude', ':driver codex')")
 	fmt.Println("  :memory         - Browse Palace-Mnemosyne memory stats and rooms")
 	fmt.Println("  :skills         - List learned .agents/skills/ runbooks")
 	fmt.Println("  :clear          - Clear terminal screen")
 	fmt.Println("  :exit           - Exit CLI")
 	fmt.Println()
+}
+
+func (c *CLIGateway) handleThemeCommand(input string) {
+	parts := strings.Fields(input)
+	if len(parts) == 1 || (len(parts) == 2 && (parts[1] == "list" || parts[1] == "show")) {
+		fmt.Printf("\n🎨 Available Terminal Color Themes:\n")
+		for _, th := range c.themeEng.ListThemes() {
+			activeMark := ""
+			if th.Name == c.themeEng.Active().Name {
+				activeMark = " ⭐ [ACTIVE]"
+			}
+			fmt.Printf("  • %-12s : %s%s\n", th.Name, th.DisplayName, activeMark)
+		}
+		c.themeEng.PrintPalettePreview()
+		return
+	}
+
+	themeName := strings.ToLower(parts[1])
+	if c.themeEng.SetTheme(themeName) {
+		t := c.themeEng.Active()
+		fmt.Printf("\n✨ Switched theme to: %s%s%s\n", t.Primary, t.DisplayName, theme.Reset)
+		c.themeEng.PrintPalettePreview()
+	} else {
+		fmt.Printf("\n❌ Theme '%s' not found. Available: kinetic, dracula, matrix, catppuccin, nord, amber\n\n", themeName)
+	}
 }
 
 func (c *CLIGateway) handleLCMCommand(input string, sessionID string) {
