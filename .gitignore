@@ -1,18 +1,23 @@
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
+# Secrets & Environment
 .env
-venv/
-env/
-ENV/
+*.env
+web/.env
 
-# Data & SQLite
+# Binaries & Build Artifacts
+*.exe
+agt-ul.exe
+agy-ul.exe
+bin/
+dist/
+
+# SQLite & Persistent Data
 data/
 *.sqlite
 *.sqlite3
+*.sqlite-journal
 
-# IDE
+# IDE & OS
 .vscode/
 .idea/
+.DS_Store
+Thumbs.db
