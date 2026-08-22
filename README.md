@@ -6,12 +6,13 @@
 [![License](https://img.shields.io/badge/License-MIT-emerald.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-black)](https://agent.subimpact.net)
 [![Website](https://img.shields.io/badge/Website-agent.subimpact.net-10b981)](https://agent.subimpact.net)
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-subimpact-FFDD00?style=flat&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/subimpact)
 [![RAM](https://img.shields.io/badge/RAM-%3C15MB-cyan)](https://agent.subimpact.net)
 [![Zero API Keys](https://img.shields.io/badge/API%20Keys-%240.00%20(Local%20CLI)-success)](https://agent.subimpact.net)
 
 **The Universal 24/7 Agent Gateway & Cognitive Operating System (Written in Pure Go)**
 
-[Website](https://agent.subimpact.net) &bull; [Quickstart](#-quickstart--installation) &bull; [Architecture](docs/ARCHITECTURE.md) &bull; [Memory Palace](docs/MEMORY_PALACE.md) &bull; [CLI Adapters](docs/CLI_ADAPTERS.md) &bull; [Gateways](docs/GATEWAYS.md) &bull; [Cron Engine](docs/CRON_AUTOMATIONS.md)
+[Website](https://agent.subimpact.net) &bull; [☕ Support](https://buymeacoffee.com/subimpact) &bull; [Quickstart](#-quickstart--installation) &bull; [Architecture](docs/ARCHITECTURE.md) &bull; [Memory Palace](docs/MEMORY_PALACE.md) &bull; [CLI Adapters](docs/CLI_ADAPTERS.md) &bull; [Gateways](docs/GATEWAYS.md) &bull; [Cron Engine](docs/CRON_AUTOMATIONS.md)
 
 </div>
 
@@ -180,6 +181,16 @@ go build -o agt-ul.exe .
 * ⏰ **[In-Process Autonomous Cron Engine](docs/CRON_AUTOMATIONS.md)**
 * ⚡ **[Progressive Skill Engine & Package Manager](docs/SKILLS_AND_PLUGINS.md)**
 * 🩺 **[System Doctor & Self-Updater](docs/DOCTOR_AND_UPDATER.md)**
+
+---
+
+## ☕ Support the Project
+
+If you find `agent-unleashed` valuable and would like to support continued development:
+
+[![Buy Me A Coffee](https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png)](https://buymeacoffee.com/subimpact)
+
+👉 **[buymeacoffee.com/subimpact](https://buymeacoffee.com/subimpact)**
 
 ---
 
