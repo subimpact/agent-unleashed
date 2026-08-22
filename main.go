@@ -88,6 +88,10 @@ func main() {
 			runMemoryReport(configPath)
 			return
 
+		case "wiki":
+			runWikiReport(configPath)
+			return
+
 		case "cron":
 			runCronReport(configPath)
 			return
@@ -219,10 +223,35 @@ func printHelp() {
 	fmt.Println("  agt-ul setup         Run interactive setup wizard")
 	fmt.Println("  agt-ul status        Display detected CLI tools & system diagnostics")
 	fmt.Println("  agt-ul memory        Inspect Palace-Mnemosyne memory stats")
+	fmt.Println("  agt-ul wiki          Browse compiled project LLM-Wiki articles")
 	fmt.Println("  agt-ul cron          List active background scheduled tasks")
 	fmt.Println("  agt-ul version       Display version and build info")
 	fmt.Println("  agt-ul hook-memory   Antigravity PreInvocation lifecycle hook")
 	fmt.Println("  agt-ul hook-reflect  Antigravity Stop lifecycle hook")
+}
+
+func runWikiReport(configPath string) {
+	cfg, err := config.LoadConfig(configPath)
+	if err != nil {
+		log.Fatalf("Error: %v", err)
+	}
+	eng, err := engine.NewUnleashedEngine(cfg)
+	if err != nil {
+		log.Fatalf("Engine error: %v", err)
+	}
+	defer eng.MemoryStore.Close()
+
+	if eng.WikiEngine == nil {
+		fmt.Println("❌ LLM-Wiki is not initialized.")
+		return
+	}
+
+	pages := eng.WikiEngine.ListPages()
+	fmt.Printf("\n📚 Project LLM-Wiki Knowledge Base (%d Pages):\n", len(pages))
+	for _, p := range pages {
+		fmt.Printf("  • [[%-20s]] : %s (%s)\n", p.Slug, p.Title, p.Summary)
+	}
+	fmt.Println()
 }
 
 func runCronReport(configPath string) {

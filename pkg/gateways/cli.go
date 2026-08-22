@@ -139,6 +139,11 @@ func (c *CLIGateway) Start(ctx context.Context) error {
 			continue
 		}
 
+		if strings.HasPrefix(lower, ":wiki") {
+			c.handleWikiCommand(input)
+			continue
+		}
+
 		if lower == ":memory" {
 			c.printMemoryPalace()
 			continue
@@ -380,6 +385,7 @@ func (c *CLIGateway) printHelp() {
 	fmt.Println("  :context        - Visual context window gauge & token breakdown")
 	fmt.Println("  :verbose        - Toggle verbose mode on/off (detailed commands & debug)")
 	fmt.Println("  :profile        - View & manage dialectic user persona & coding profile")
+	fmt.Println("  :wiki           - Browse or search project LLM-Wiki knowledge graph (:wiki list/read/search)")
 	fmt.Println("  :cron           - List or manage 24/7 background scheduled tasks (:cron list/add/remove)")
 	fmt.Println("  :stats          - View session execution diagnostics and token metrics")
 	fmt.Println("  :drivers        - List all detected AI CLI tools on this system")
@@ -389,6 +395,61 @@ func (c *CLIGateway) printHelp() {
 	fmt.Println("  :clear          - Clear terminal screen")
 	fmt.Println("  :exit           - Exit CLI")
 	fmt.Println()
+}
+
+func (c *CLIGateway) handleWikiCommand(input string) {
+	if c.engine.WikiEngine == nil {
+		fmt.Println("❌ LLM-Wiki is not initialized.")
+		return
+	}
+
+	parts := strings.Fields(input)
+	if len(parts) == 1 || (len(parts) == 2 && parts[1] == "list") {
+		pages := c.engine.WikiEngine.ListPages()
+		fmt.Printf("\n📚 Project LLM-Wiki Knowledge Base (%d Pages):\n", len(pages))
+		for _, p := range pages {
+			fmt.Printf("  • [[%-20s]] : %s (%s)\n", p.Slug, p.Title, p.Summary)
+		}
+		fmt.Println()
+		return
+	}
+
+	sub := parts[1]
+	switch sub {
+	case "read", "view":
+		if len(parts) < 3 {
+			fmt.Println("Usage: :wiki read <slug> (e.g., ':wiki read architecture')")
+			return
+		}
+		slug := parts[2]
+		page, err := c.engine.WikiEngine.GetPage(slug)
+		if err != nil {
+			fmt.Printf("❌ %v\n\n", err)
+			return
+		}
+		fmt.Printf("\n============================================================\n")
+		fmt.Println(page.Content)
+		fmt.Printf("============================================================\n\n")
+
+	case "search", "find":
+		if len(parts) < 3 {
+			fmt.Println("Usage: :wiki search <query>")
+			return
+		}
+		query := strings.Join(parts[2:], " ")
+		matches := c.engine.WikiEngine.Search(query)
+		fmt.Printf("\n🔍 LLM-Wiki Search Results for '%s' (%d matches):\n", query, len(matches))
+		for _, m := range matches {
+			fmt.Printf("  • [[%-20s]] : %s\n", m.Slug, m.Title)
+		}
+		fmt.Println()
+
+	default:
+		fmt.Println("Usage:")
+		fmt.Println("  :wiki                - List all wiki pages")
+		fmt.Println("  :wiki read <slug>    - Read a wiki page")
+		fmt.Println("  :wiki search <query> - Search across wiki articles")
+	}
 }
 
 func (c *CLIGateway) printDrivers() {

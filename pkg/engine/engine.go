@@ -10,6 +10,7 @@ import (
 	"agent-unleashed/pkg/config"
 	"agent-unleashed/pkg/memory"
 	"agent-unleashed/pkg/skills"
+	"agent-unleashed/pkg/wiki"
 )
 
 type EventType string
@@ -41,6 +42,7 @@ type UnleashedEngine struct {
 	MemoryStore  *memory.MemoryStore
 	ProfileMgr   *memory.ProfileManager
 	SkillIndexer *skills.SkillIndexer
+	WikiEngine   *wiki.WikiEngine
 	Tools        *ToolRunner
 	Reflection   *ReflectionEngine
 	Registry     *adapters.AdapterRegistry
@@ -64,6 +66,7 @@ func NewUnleashedEngine(cfg *config.AppConfig) (*UnleashedEngine, error) {
 
 	profileMgr := memory.NewProfileManager(store)
 	skillIndexer := skills.NewSkillIndexer(cfg.System.SkillsDir)
+	wikiEngine := wiki.NewWikiEngine(cfg.Wiki.WikiDir)
 	toolRunner := NewToolRunner(cfg.System.WorkspaceDir, store)
 	refl := NewReflectionEngine(cfg.System.WorkspaceDir, cfg.System.SkillsDir, store)
 
@@ -84,6 +87,7 @@ func NewUnleashedEngine(cfg *config.AppConfig) (*UnleashedEngine, error) {
 		MemoryStore:  store,
 		ProfileMgr:   profileMgr,
 		SkillIndexer: skillIndexer,
+		WikiEngine:   wikiEngine,
 		Tools:        toolRunner,
 		Reflection:   refl,
 		Registry:     reg,
@@ -198,6 +202,14 @@ func (e *UnleashedEngine) Chat(ctx context.Context, sessionID, userMessage, chan
 		}
 	}
 
+	// 4. Inject LLM-Wiki Knowledge Base
+	if e.WikiEngine != nil && e.cfg.Wiki.Enabled {
+		wikiIdx := e.WikiEngine.GenerateLightweightIndex()
+		if wikiIdx != "" {
+			contextBlocks = append(contextBlocks, wikiIdx)
+		}
+	}
+
 	var augmentedPrompt string
 	if len(contextBlocks) > 0 {
 		augmentedPrompt = strings.Join(contextBlocks, "\n\n") + "\n\n" + userMessage
@@ -205,7 +217,7 @@ func (e *UnleashedEngine) Chat(ctx context.Context, sessionID, userMessage, chan
 		augmentedPrompt = userMessage
 	}
 
-	// 4. Select & Run CLI Adapter
+	// 5. Select & Run CLI Adapter
 	adapter, actualName := e.resolveAdapter()
 	if adapter == nil {
 		out <- Event{
@@ -247,6 +259,18 @@ func (e *UnleashedEngine) Chat(ctx context.Context, sessionID, userMessage, chan
 		Type:    EventText,
 		Content: execResult.Response,
 		Stats:   execResult,
+	}
+
+	// 6. LLM-Wiki Auto-Ingestion
+	if e.WikiEngine != nil && e.cfg.Wiki.Enabled && e.cfg.Wiki.AutoBuild && execResult != nil && execResult.Response != "" {
+		if len(userMessage) > 10 {
+			topic := "session_knowledge"
+			words := strings.Fields(userMessage)
+			if len(words) > 0 {
+				topic = words[0]
+			}
+			_, _ = e.WikiEngine.AutoIngest(topic, userMessage, execResult.Response)
+		}
 	}
 
 	out <- Event{

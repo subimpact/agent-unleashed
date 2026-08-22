@@ -76,6 +76,12 @@ type RESTAPIGatewayConfig struct {
 	WebhookSecret string `yaml:"webhook_secret"`
 }
 
+type WikiConfig struct {
+	Enabled   bool   `yaml:"enabled"`
+	WikiDir   string `yaml:"wiki_dir"`
+	AutoBuild bool   `yaml:"auto_build"`
+}
+
 type GatewaysConfig struct {
 	CLI      CLIGatewayConfig      `yaml:"cli"`
 	Telegram TelegramGatewayConfig `yaml:"telegram"`
@@ -88,6 +94,7 @@ type AppConfig struct {
 	Model      ModelConfig        `yaml:"model"`
 	Memory     PalaceMemoryConfig `yaml:"memory"`
 	Reflection ReflectionConfig   `yaml:"reflection"`
+	Wiki       WikiConfig         `yaml:"wiki"`
 	Gateways   GatewaysConfig     `yaml:"gateways"`
 }
 
@@ -128,6 +135,11 @@ func LoadConfig(configPath string) (*AppConfig, error) {
 			AutoGenerateSkills:        true,
 			AutoExtractFacts:          true,
 			MinToolStepsForReflection: 2,
+		},
+		Wiki: WikiConfig{
+			Enabled:   true,
+			WikiDir:   "./.agents/wiki",
+			AutoBuild: true,
 		},
 		Gateways: GatewaysConfig{
 			CLI:     CLIGatewayConfig{Enabled: true},
