@@ -111,11 +111,26 @@ Interactive terminal interface supporting command shortcuts:
 | **`:context`** | Visual context window gauge and token breakdown |
 | **`:verbose`** | Toggle verbose mode on/off |
 | **`:profile`** | View dialectic user persona and coding preferences |
+| **`:wiki`** | Browse or search project LLM-Wiki knowledge graph (`:wiki list/read/search`) |
+| **`:lcm`** | Lossless Context Management DAG inspector (`:lcm describe/grep/expand`) |
 | **`:cron`** | List or manage 24/7 background scheduled tasks |
 | **`:stats`** | View session token metrics and execution times |
 | **`:drivers`** | List all detected AI CLI tools |
-| **`:driver <name>`** | Switch active driver (e.g. `:driver agy`, `:driver claude`) |
+| **`:driver <name>`** | Switch active driver (e.g. `:driver agy`, `:driver claude`, `:driver codex`) |
 | **`:memory`** | Browse Palace-Mnemosyne memory stats and rooms |
 | **`:skills`** | List discovered `.agents/skills/` runbooks |
 | **`:clear`** | Clear terminal screen |
 | **`:exit`** | Exit REPL |
+
+---
+
+## 5. REST API Endpoints Specification
+
+| Method | Endpoint | Description | Sample Response |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/health` / `/healthz` | Health check & active driver | `{"status":"online","driver":"agy"}` |
+| `GET` | `/api/v1/status` | System status, detected drivers, LCM/Wiki flags | `{"agent_name":"Agent-Unleashed","available_drivers":["agy","claude"]}` |
+| `GET` | `/api/v1/wiki` | List all compiled LLM-Wiki knowledge pages | `{"total_pages":5,"pages":[...]}` |
+| `GET` | `/api/v1/lcm?session_id=default` | Lossless Context Management DAG summary | `{"session_id":"default","summary":"..."}` |
+| `POST` | `/api/v1/chat` / `/api/v1/trigger` | Dispatches task to active driver & returns response | `{"session_id":"...","response":"..."}` |
+| `GET` | `/ws` | Real-time bidirectional WebSocket event stream | WebSocket JSON protocol frames |

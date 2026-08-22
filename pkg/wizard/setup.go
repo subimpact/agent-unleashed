@@ -28,6 +28,7 @@ func RunSetupWizard(configPath string) error {
 	reg := adapters.NewAdapterRegistry()
 	reg.Register(adapters.NewAgyAdapter(cfg.Model.AgyBinaryPath))
 	reg.Register(adapters.NewClaudeAdapter(cfg.Model.ClaudeBinaryPath))
+	reg.Register(adapters.NewCodexAdapter(cfg.Model.CodexBinaryPath))
 	reg.Register(adapters.NewAiderAdapter(cfg.Model.AiderBinaryPath))
 	reg.Register(adapters.NewOllamaAdapter(cfg.Model.OllamaEndpoint))
 
@@ -45,7 +46,7 @@ func RunSetupWizard(configPath string) error {
 
 	// Step 2: Driver Selection
 	fmt.Println("\n--- 1. Primary Agent Driver ---")
-	fmt.Println("Options: 'auto' (Cascade through detected tools), 'agy', 'claude', 'aider', 'ollama', 'api'")
+	fmt.Println("Options: 'auto' (Cascade through detected tools), 'agy', 'claude', 'codex', 'aider', 'ollama', 'api'")
 	currentDriver := cfg.Model.Driver
 	if currentDriver == "" {
 		currentDriver = "auto"

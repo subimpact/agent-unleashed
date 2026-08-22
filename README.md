@@ -127,6 +127,8 @@ go build -o agt-ul.exe .
 | **`agt-ul setup`** | Run interactive configuration wizard |
 | **`agt-ul status`** | Display detected CLI tools & system diagnostics |
 | **`agt-ul memory`** | Inspect Palace-Mnemosyne memory stats |
+| **`agt-ul wiki`** | Browse compiled project LLM-Wiki articles |
+| **`agt-ul lcm`** | Lossless Context Management summary & message DAG |
 | **`agt-ul cron`** | List active background scheduled tasks |
 | **`agt-ul version`** | Display version and build info |
 
@@ -138,10 +140,12 @@ go build -o agt-ul.exe .
 | **`:context`** | Visual context window gauge & token breakdown |
 | **`:verbose`** | Toggle verbose mode on/off |
 | **`:profile`** | View dialectic user persona & coding profile |
+| **`:wiki`** | Browse or search project LLM-Wiki knowledge graph (`:wiki list/read/search`) |
+| **`:lcm`** | Lossless Context Management DAG inspector (`:lcm describe/grep/expand`) |
 | **`:cron`** | Manage background cron tasks (`:cron list`, `:cron add`, `:cron remove`) |
 | **`:stats`** | View session execution diagnostics and token metrics |
 | **`:drivers`** | List all detected AI CLI tools |
-| **`:driver <name>`** | Switch active driver (e.g. `:driver agy`, `:driver claude`) |
+| **`:driver <name>`** | Switch active driver (e.g. `:driver agy`, `:driver claude`, `:driver codex`) |
 | **`:memory`** | Browse Palace-Mnemosyne memory drawers |
 | **`:skills`** | List learned skill runbooks |
 | **`:clear`** | Clear terminal screen |
@@ -154,7 +158,9 @@ go build -o agt-ul.exe .
 | Feature / Dimension | ⚡ Agent-Unleashed (`agt-ul`) | 🌐 OpenClaw | 🧠 Hermes Agent | 🤖 Aider |
 | :--- | :--- | :--- | :--- | :--- |
 | **Language & Footprint** | **Pure Go (&lt;15MB RAM)** | Node.js (~150MB) | Python (~200MB) | Python (~180MB) |
-| **Local CLI Multiplexing** | **✅ agy, claude, aider, ollama** | ❌ API Keys Only | ❌ API / vLLM only | ⚠️ Single-CLI |
+| **Local CLI Multiplexing** | **✅ agy, claude, codex, aider, ollama** | ❌ API Keys Only | ❌ API / vLLM only | ⚠️ Single-CLI |
+| **Lossless Context (LCM)** | **✅ Native DAG + Verbatim Ledger** | ❌ Lossy Sliding Window | ⚠️ Optional Plugin | ❌ Sliding Window |
+| **Auto-Compiled LLM-Wiki** | **✅ Native Interlinked Markdown** | ❌ None | ❌ None | ❌ None |
 | **Cognitive Long-Term Memory** | **✅ Palace-Mnemosyne + Decay** | Basic Vector Store | ✅ Honcho Dialectic | ❌ Git Session only |
 | **Live Context Telemetry Bar** | **✅ Live Bar + :context Meter** | ❌ None | ❌ Logs only | Basic summary |
 | **In-Process 24/7 Cron** | **✅ SQLite-Backed 5-Part Cron** | ✅ External cron | ✅ Agent cron | ❌ Interactive only |
@@ -162,15 +168,18 @@ go build -o agt-ul.exe .
 
 ---
 
-## 📚 Detailed Documentation
+## 📚 Complete Documentation Suite
 
-* [🏗️ System Architecture](docs/ARCHITECTURE.md)
-* [🏛️ Palace-Mnemosyne Memory Engine](docs/MEMORY_PALACE.md)
-* [🔌 Universal CLI Adapters](docs/CLI_ADAPTERS.md)
-* [🌐 Multi-Channel Gateways & WebSockets](docs/GATEWAYS.md)
-* [⏰ In-Process Autonomous Cron Engine](docs/CRON_AUTOMATIONS.md)
-* [⚡ Progressive Skill Engine & Package Manager](docs/SKILLS_AND_PLUGINS.md)
-* [🩺 System Doctor & Self-Updater](docs/DOCTOR_AND_UPDATER.md)
+* 🟢 **[Non-Technical Beginner's Quickstart Guide](docs/NON_TECHNICAL_BEGINNERS_GUIDE.md)** *(Start here if you have zero coding experience!)*
+* 🛠️ **[Supported AI CLIs Setup & Auth Guide](docs/CLI_INSTALLATION_GUIDE.md)**
+* 🏗️ **[System Architecture & Runtime](docs/ARCHITECTURE.md)**
+* 🏛️ **[Palace-Mnemosyne Memory Engine](docs/MEMORY_PALACE.md)**
+* 🧠 **[Lossless Context Management (LCM) DAG Guide](docs/LOSSLESS_CONTEXT_MANAGEMENT.md)**
+* 🔌 **[Universal CLI Adapters](docs/CLI_ADAPTERS.md)**
+* 🌐 **[Multi-Channel Gateways, WebSockets & REST APIs](docs/GATEWAYS.md)**
+* ⏰ **[In-Process Autonomous Cron Engine](docs/CRON_AUTOMATIONS.md)**
+* ⚡ **[Progressive Skill Engine & Package Manager](docs/SKILLS_AND_PLUGINS.md)**
+* 🩺 **[System Doctor & Self-Updater](docs/DOCTOR_AND_UPDATER.md)**
 
 ---
 

@@ -41,20 +41,90 @@ func NewRESTAPIGateway(eng *engine.UnleashedEngine, cfg config.RESTAPIGatewayCon
 func (r *RESTAPIGateway) Start(ctx context.Context) error {
 	mux := http.NewServeMux()
 
-	// 1. Health check
-	mux.HandleFunc("/health", func(w http.ResponseWriter, req *http.Request) {
+	// 1. Health check endpoints
+	healthHandler := func(w http.ResponseWriter, req *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]string{
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"status": "online",
 			"agent":  "Agent-Unleashed (agt-ul Universal Go)",
+			"driver": r.engine.GetActiveDriverName(),
 		})
-	})
+	}
+	mux.HandleFunc("/health", healthHandler)
+	mux.HandleFunc("/healthz", healthHandler)
 
 	// 2. Real-Time WebSocket Streaming Endpoint
 	mux.Handle("/ws", r.wsHub.Handler())
 
-	// 3. REST API Webhook Trigger
-	mux.HandleFunc("/api/v1/trigger", func(w http.ResponseWriter, req *http.Request) {
+	// 3. Status Endpoint
+	mux.HandleFunc("/api/v1/status", func(w http.ResponseWriter, req *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+
+		available := r.engine.Registry.ListAvailable()
+		var drivers []string
+		for _, a := range available {
+			drivers = append(drivers, a.Name())
+		}
+
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"agent_name":        "Agent-Unleashed",
+			"active_driver":     r.engine.GetActiveDriverName(),
+			"available_drivers": drivers,
+			"lcm_enabled":       r.engine.LCMEngine != nil,
+			"wiki_enabled":      r.engine.WikiEngine != nil,
+		})
+	})
+
+	// 4. Wiki API
+	mux.HandleFunc("/api/v1/wiki", func(w http.ResponseWriter, req *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+
+		if r.engine.WikiEngine == nil {
+			http.Error(w, `{"error": "Wiki engine disabled"}`, http.StatusNotFound)
+			return
+		}
+
+		pages := r.engine.WikiEngine.ListPages()
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"total_pages": len(pages),
+			"pages":       pages,
+		})
+	})
+
+	// 5. LCM API
+	mux.HandleFunc("/api/v1/lcm", func(w http.ResponseWriter, req *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+
+		if r.engine.LCMEngine == nil {
+			http.Error(w, `{"error": "LCM engine disabled"}`, http.StatusNotFound)
+			return
+		}
+
+		sessionID := req.URL.Query().Get("session_id")
+		if sessionID == "" {
+			sessionID = "default"
+		}
+
+		desc, _ := r.engine.LCMEngine.Describe(sessionID)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"session_id": sessionID,
+			"summary":    desc,
+		})
+	})
+
+	// 6. REST API Webhook / Chat Trigger
+	chatHandler := func(w http.ResponseWriter, req *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		if req.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
 		if req.Method != http.MethodPost {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
@@ -91,7 +161,10 @@ func (r *RESTAPIGateway) Start(ctx context.Context) error {
 			SessionID: sessionID,
 			Response:  fullResp.String(),
 		})
-	})
+	}
+
+	mux.HandleFunc("/api/v1/trigger", chatHandler)
+	mux.HandleFunc("/api/v1/chat", chatHandler)
 
 	addr := fmt.Sprintf("%s:%d", r.cfg.Host, r.cfg.Port)
 	r.server = &http.Server{
