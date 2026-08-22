@@ -74,22 +74,39 @@ graph TD
 
 ## 🚀 Quickstart & Installation
 
-### Windows (PowerShell)
+### 1. Install `agent-unleashed` (`agt-ul`)
+
+#### Windows (PowerShell)
 ```powershell
 irm https://agent.subimpact.net/install.ps1 | iex
 ```
 
-### macOS / Linux / Termux
+#### macOS / Linux / Termux
 ```bash
 curl -fsSL https://agent.subimpact.net/install.sh | bash
 ```
 
-### Build from Source
+#### Build from Source
 ```bash
 git clone https://github.com/subimpact/agent-unleashed.git
 cd agent-unleashed
 go build -o agt-ul.exe .
 ```
+
+---
+
+## 🛠️ Prerequisites: Supported AI CLIs Setup
+
+`agent-unleashed` orchestrates your local AI CLI tools. You only need **at least one** installed:
+
+| CLI Tool | Install Command | Auth Command |
+| :--- | :--- | :--- |
+| **🚀 Google Antigravity (`agy`)** | `npm install -g @google/antigravity-cli` | `agy auth login` |
+| **🧠 Claude Code (`claude`)** | `npm install -g @anthropic-ai/claude-code` | `claude` *(Browser login)* |
+| **🤖 Aider (`aider`)** | `pipx install aider-chat` *(or `pip install aider-chat`)* | Uses local env/keys |
+| **🦙 Ollama (`ollama`)** | [ollama.com/download](https://ollama.com/download) / `brew install ollama` | `ollama pull qwen2.5-coder:7b` |
+
+👉 **Full Step-by-Step Guide:** See [AI CLIs Installation Guide](docs/CLI_INSTALLATION_GUIDE.md).
 
 ---
 
