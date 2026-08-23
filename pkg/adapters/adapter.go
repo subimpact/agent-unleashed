@@ -7,17 +7,17 @@ import (
 )
 
 type ExecutionResult struct {
-	Response        string                 `json:"response"`
-	InputTokens     int                    `json:"input_tokens"`
-	OutputTokens    int                    `json:"output_tokens"`
-	ThinkingTokens  int                    `json:"thinking_tokens"`
-	CacheReadTokens int                    `json:"cache_read_tokens"`
-	TotalTokens     int                    `json:"total_tokens"`
-	DurationSeconds float64                `json:"duration_seconds"`
-	NumTurns        int                    `json:"num_turns"`
-	RawCommand      string                 `json:"raw_command,omitempty"`
-	RawOutput       string                 `json:"raw_output,omitempty"`
-	ContextLimit    int                    `json:"context_limit"` // e.g. 1,000,000 or 200,000
+	Response        string  `json:"response"`
+	InputTokens     int     `json:"input_tokens"`
+	OutputTokens    int     `json:"output_tokens"`
+	ThinkingTokens  int     `json:"thinking_tokens"`
+	CacheReadTokens int     `json:"cache_read_tokens"`
+	TotalTokens     int     `json:"total_tokens"`
+	DurationSeconds float64 `json:"duration_seconds"`
+	NumTurns        int     `json:"num_turns"`
+	RawCommand      string  `json:"raw_command,omitempty"`
+	RawOutput       string  `json:"raw_output,omitempty"`
+	ContextLimit    int     `json:"context_limit"` // e.g. 1,000,000 or 200,000
 }
 
 type CLIAdapter interface {
@@ -73,6 +73,17 @@ func (r *AdapterRegistry) ListAll() []CLIAdapter {
 		all = append(all, a)
 	}
 	return all
+}
+
+// AutoApprove reports whether the engine authorised this adapter to bypass the
+// underlying CLI's interactive permission prompts. It fails closed: an adapter
+// invoked without an explicit decision keeps the CLI's own safety prompts.
+func AutoApprove(options map[string]string) bool {
+	switch options["auto_approve"] {
+	case "true", "1", "yes":
+		return true
+	}
+	return false
 }
 
 // Helper to look up binary in PATH

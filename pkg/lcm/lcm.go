@@ -81,8 +81,16 @@ func (e *LCMEngine) initSchema() error {
 	);
 	CREATE INDEX IF NOT EXISTS idx_lcm_summaries_session ON lcm_summaries(session_id);
 	`
-	_, err := e.db.Exec(schema)
-	return err
+	if _, err := e.db.Exec(schema); err != nil {
+		return err
+	}
+
+	// Without this column CompressIfExceeds re-summarised the same oldest ten
+	// messages on every turn, so summary nodes multiplied without bound and the
+	// session token total never fell back under the threshold.
+	_, _ = e.db.Exec("ALTER TABLE lcm_messages ADD COLUMN summarized INTEGER NOT NULL DEFAULT 0")
+	_, _ = e.db.Exec("CREATE INDEX IF NOT EXISTS idx_lcm_pending ON lcm_messages(session_id, summarized)")
+	return nil
 }
 
 func (e *LCMEngine) Close() error {
@@ -119,6 +127,101 @@ func (e *LCMEngine) AppendMessage(sessionID, role, content string) (*LCMMessage,
 		Tokens:    tokens,
 		Timestamp: now,
 	}, nil
+}
+
+// BuildContext renders the session's history for injection into the next
+// prompt: every hierarchical summary node first, then as many recent verbatim
+// messages as the token budget allows.
+//
+// Until this existed the LCM store was write-only. Messages and summaries
+// accumulated in SQLite and nothing was ever fed back, so "Lossless Context
+// Management" contributed nothing to what the model actually saw.
+func (e *LCMEngine) BuildContext(sessionID string, tokenBudget int) (string, error) {
+	if e == nil || e.db == nil {
+		return "", nil
+	}
+	if tokenBudget <= 0 {
+		tokenBudget = 2000
+	}
+
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+
+	var sections []string
+
+	// Compressed history, oldest first.
+	sumRows, err := e.db.Query(
+		`SELECT id, depth, summary_text FROM lcm_summaries WHERE session_id = ? ORDER BY id ASC`, sessionID)
+	if err == nil {
+		var lines []string
+		for sumRows.Next() {
+			var id int64
+			var depth int
+			var text string
+			if err := sumRows.Scan(&id, &depth, &text); err == nil {
+				lines = append(lines, fmt.Sprintf("- [node #%d, depth %d] %s", id, depth, text))
+			}
+		}
+		sumRows.Close()
+		if len(lines) > 0 {
+			sections = append(sections,
+				"Compressed earlier history (expand any node verbatim with `:lcm expand <message_id>`):\n"+strings.Join(lines, "\n"))
+		}
+	}
+
+	// Recent verbatim turns, newest first so the budget keeps the freshest.
+	msgRows, err := e.db.Query(
+		`SELECT id, role, content, tokens FROM lcm_messages WHERE session_id = ? AND summarized = 0 ORDER BY id DESC LIMIT 200`, sessionID)
+	if err != nil {
+		if len(sections) == 0 {
+			return "", err
+		}
+		return "[Lossless Context Management]:\n" + strings.Join(sections, "\n\n"), nil
+	}
+	defer msgRows.Close()
+
+	var recent []string
+	spent := 0
+	for msgRows.Next() {
+		var id int64
+		var role, content string
+		var tokens int
+		if err := msgRows.Scan(&id, &role, &content, &tokens); err != nil {
+			continue
+		}
+		if spent+tokens > tokenBudget && len(recent) > 0 {
+			break
+		}
+		spent += tokens
+		recent = append(recent, fmt.Sprintf("[#%d %s] %s", id, role, content))
+	}
+
+	if len(recent) > 0 {
+		// Reverse into chronological order.
+		for i, j := 0, len(recent)-1; i < j; i, j = i+1, j-1 {
+			recent[i], recent[j] = recent[j], recent[i]
+		}
+		sections = append(sections, "Recent conversation:\n"+strings.Join(recent, "\n"))
+	}
+
+	if len(sections) == 0 {
+		return "", nil
+	}
+	return "[Lossless Context Management]:\n" + strings.Join(sections, "\n\n"), nil
+}
+
+// PendingTokens is the number of tokens still held as uncompressed verbatim
+// messages for a session.
+func (e *LCMEngine) PendingTokens(sessionID string) int {
+	if e == nil || e.db == nil {
+		return 0
+	}
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+
+	var total int
+	_ = e.db.QueryRow(`SELECT COALESCE(SUM(tokens), 0) FROM lcm_messages WHERE session_id = ? AND summarized = 0`, sessionID).Scan(&total)
+	return total
 }
 
 func (e *LCMEngine) Grep(sessionID, query string) ([]*LCMMessage, error) {
@@ -164,7 +267,9 @@ func (e *LCMEngine) Describe(sessionID string) (string, error) {
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("📊 Lossless Context Management (LCM) DAG Summary [Session: %s]:\n", sessionID))
 	sb.WriteString(fmt.Sprintf("- Total Historical Messages Stored: %d\n", totalMessages))
-	sb.WriteString(fmt.Sprintf("- Total Uncompressed Tokens: %d\n", totalTokens))
+	var liveTokens int
+	_ = e.db.QueryRow(`SELECT COALESCE(SUM(tokens), 0) FROM lcm_messages WHERE session_id = ? AND summarized = 0`, sessionID).Scan(&liveTokens)
+	sb.WriteString(fmt.Sprintf("- Total Stored Tokens: %d (%d still verbatim, %d folded into summaries)\n", totalTokens, liveTokens, totalTokens-liveTokens))
 	sb.WriteString(fmt.Sprintf("- Hierarchical Summary DAG Nodes: %d\n\n", summaryCount))
 
 	rows, err := e.db.Query(`SELECT id, depth, summary_text, tokens, created_at FROM lcm_summaries WHERE session_id = ? ORDER BY depth ASC, id DESC LIMIT 10`, sessionID)
@@ -202,14 +307,16 @@ func (e *LCMEngine) CompressIfExceeds(sessionID string, tokenThreshold int) (*Su
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
+	// Only live (unsummarised) messages count towards the threshold, otherwise
+	// a session that crossed it once would compress on every single turn.
 	var totalTokens int
-	_ = e.db.QueryRow(`SELECT COALESCE(SUM(tokens), 0) FROM lcm_messages WHERE session_id = ?`, sessionID).Scan(&totalTokens)
+	_ = e.db.QueryRow(`SELECT COALESCE(SUM(tokens), 0) FROM lcm_messages WHERE session_id = ? AND summarized = 0`, sessionID).Scan(&totalTokens)
 	if totalTokens < tokenThreshold {
 		return nil, nil // No compression needed
 	}
 
-	// Retrieve oldest unsummarized chunk of messages (e.g. oldest 10 messages)
-	rows, err := e.db.Query(`SELECT id, role, content FROM lcm_messages WHERE session_id = ? ORDER BY id ASC LIMIT 10`, sessionID)
+	// Retrieve the oldest chunk that has not been folded into a summary yet.
+	rows, err := e.db.Query(`SELECT id, role, content FROM lcm_messages WHERE session_id = ? AND summarized = 0 ORDER BY id ASC LIMIT 10`, sessionID)
 	if err != nil {
 		return nil, err
 	}
@@ -245,6 +352,20 @@ func (e *LCMEngine) CompressIfExceeds(sessionID string, tokenThreshold int) (*Su
 	if err != nil {
 		return nil, err
 	}
+
+	// Mark the covered messages so the next pass moves forward. Nothing is
+	// deleted - the verbatim rows stay addressable through Expand and Grep.
+	markArgs := make([]interface{}, 0, len(ids)+1)
+	markArgs = append(markArgs, sessionID)
+	placeholders := make([]string, len(ids))
+	for i, id := range ids {
+		placeholders[i] = "?"
+		markArgs = append(markArgs, id)
+	}
+	_, _ = e.db.Exec(
+		`UPDATE lcm_messages SET summarized = 1 WHERE session_id = ? AND id IN (`+strings.Join(placeholders, ",")+`)`,
+		markArgs...,
+	)
 
 	nodeID, _ := res.LastInsertId()
 	return &SummaryNode{

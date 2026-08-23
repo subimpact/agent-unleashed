@@ -75,7 +75,10 @@ type RESTAPIGatewayConfig struct {
 	Enabled       bool   `yaml:"enabled"`
 	Host          string `yaml:"host"`
 	Port          int    `yaml:"port"`
-	WebhookSecret string `yaml:"webhook_secret"`
+	WebhookSecret string `yaml:"webhook_secret"` // Blank: a token is generated into data/rest_api_token
+	// Browser origins permitted to call the gateway. Empty (the default) refuses
+	// every cross-site request, which is what a machine-local daemon wants.
+	AllowedOrigins []string `yaml:"allowed_origins"`
 }
 
 type WikiConfig struct {
@@ -89,6 +92,9 @@ type LCMConfig struct {
 	DBPath         string `yaml:"db_path"`
 	TokenThreshold int    `yaml:"token_threshold"`
 	AutoCompress   bool   `yaml:"auto_compress"`
+	// Tokens of replayed history injected into each prompt: summary nodes plus
+	// as many recent verbatim turns as fit.
+	ContextTokenBudget int `yaml:"context_token_budget"`
 }
 
 type GatewaysConfig struct {
@@ -153,10 +159,11 @@ func LoadConfig(configPath string) (*AppConfig, error) {
 			AutoBuild: true,
 		},
 		LCM: LCMConfig{
-			Enabled:        true,
-			DBPath:         "./data/lcm.sqlite",
-			TokenThreshold: 8000,
-			AutoCompress:   true,
+			Enabled:            true,
+			DBPath:             "./data/lcm.sqlite",
+			TokenThreshold:     8000,
+			AutoCompress:       true,
+			ContextTokenBudget: 2000,
 		},
 		Gateways: GatewaysConfig{
 			CLI:     CLIGatewayConfig{Enabled: true},
@@ -187,6 +194,10 @@ func LoadConfig(configPath string) (*AppConfig, error) {
 		cfg.System.WorkspaceDir = "."
 	}
 	cfg.System.WorkspaceDir, _ = filepath.Abs(cfg.System.WorkspaceDir)
+
+	if cfg.LCM.ContextTokenBudget <= 0 {
+		cfg.LCM.ContextTokenBudget = 2000
+	}
 
 	return cfg, nil
 }

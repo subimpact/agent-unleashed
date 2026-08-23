@@ -16,15 +16,15 @@ import (
 )
 
 type CLIGateway struct {
-	engine *engine.UnleashedEngine
-	cronEng *cron.CronEngine
+	engine   *engine.UnleashedEngine
+	cronEng  *cron.CronEngine
 	themeEng *theme.ThemeEngine
 }
 
 func NewCLIGateway(eng *engine.UnleashedEngine, ce *cron.CronEngine) *CLIGateway {
 	return &CLIGateway{
-		engine: eng,
-		cronEng: ce,
+		engine:   eng,
+		cronEng:  ce,
 		themeEng: theme.GetThemeEngine(),
 	}
 }
@@ -174,6 +174,13 @@ func (c *CLIGateway) Start(ctx context.Context) error {
 			continue
 		}
 
+		if strings.HasPrefix(lower, ":run ") || strings.HasPrefix(lower, ":view ") ||
+			strings.HasPrefix(lower, ":ls") || strings.HasPrefix(lower, ":web ") ||
+			strings.HasPrefix(lower, ":remember ") || strings.HasPrefix(lower, ":learn ") {
+			c.handleToolCommand(input)
+			continue
+		}
+
 		t = c.themeEng.Active()
 		fmt.Printf("\n%s🤖 Agent > %s", t.AgentPrompt, theme.Reset)
 		events := make(chan engine.Event)
@@ -223,6 +230,58 @@ func (c *CLIGateway) Start(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+// handleToolCommand exposes the engine's ToolRunner from the REPL. Every method
+// on it was unreachable before - constructed at start-up and never called - so
+// the shell, file and web helpers existed but could not be used. They stay
+// local-only: the Telegram, Discord and REST paths never reach this.
+func (c *CLIGateway) handleToolCommand(input string) {
+	t := c.themeEng.Active()
+	if c.engine.Tools == nil {
+		fmt.Println("❌ Tool runner is not initialised.")
+		return
+	}
+
+	verb := strings.ToLower(strings.Fields(input)[0])
+	arg := strings.TrimSpace(input[len(verb):])
+
+	var res engine.ToolResult
+	switch verb {
+	case ":run":
+		fmt.Printf("%s[shell] %s%s\n", t.Muted, arg, theme.Reset)
+		res = c.engine.Tools.RunCommand(arg)
+	case ":view":
+		res = c.engine.Tools.ViewFile(arg)
+	case ":ls":
+		res = c.engine.Tools.ListDir(arg)
+	case ":web":
+		fmt.Printf("%s[searching] %s%s\n", t.Muted, arg, theme.Reset)
+		res = c.engine.Tools.SearchWeb(arg)
+	case ":remember":
+		res = c.engine.Tools.SaveMemory("fact", arg)
+	case ":learn":
+		name, body, found := strings.Cut(arg, " ")
+		if !found || strings.TrimSpace(body) == "" {
+			fmt.Println("Usage: :learn <skill-name> <instructions>")
+			return
+		}
+		res = c.engine.Tools.SaveSkill(name, "Authored from the agt-ul REPL", body)
+		if res.Error == "" && c.engine.SkillIndexer != nil {
+			_ = c.engine.SkillIndexer.Reindex()
+		}
+	default:
+		fmt.Println("Unknown tool command. Try :run, :view, :ls, :web, :remember or :learn.")
+		return
+	}
+
+	if res.Error != "" {
+		fmt.Printf("%s❌ %s%s\n", t.Warning, res.Error, theme.Reset)
+	}
+	if res.Output != "" {
+		fmt.Println(strings.TrimRight(res.Output, "\n"))
+	}
+	fmt.Println()
 }
 
 func (c *CLIGateway) renderBottomConsoleBar(stats *adapters.ExecutionResult) {
@@ -420,6 +479,12 @@ func (c *CLIGateway) printHelp() {
 	fmt.Println("  :driver <name>  - Switch active driver (e.g. ':driver agy', ':driver claude', ':driver codex')")
 	fmt.Println("  :memory         - Browse Palace-Mnemosyne memory stats and rooms")
 	fmt.Println("  :skills         - List learned .agents/skills/ runbooks")
+	fmt.Println("  :run <cmd>      - Run a shell command inside the workspace")
+	fmt.Println("  :view <file>    - Print a workspace file")
+	fmt.Println("  :ls [dir]       - List a workspace directory")
+	fmt.Println("  :web <query>    - Web search")
+	fmt.Println("  :remember <txt> - Store a fact in the Memory Palace")
+	fmt.Println("  :learn <name> <instructions> - Author a new skill runbook")
 	fmt.Println("  :clear          - Clear terminal screen")
 	fmt.Println("  :exit           - Exit CLI")
 	fmt.Println()

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -75,10 +76,53 @@ func (w *WikiEngine) Init() error {
 	return nil
 }
 
+// maxIndexEntries caps how many wiki pages are advertised in the prompt. The
+// index is injected on every single turn, so an uncapped list grows without
+// bound as auto-ingest creates pages and quietly eats the context window.
+const maxIndexEntries = 25
+
+// SanitizeSlug reduces arbitrary text to a single safe path segment. Auto-ingest
+// derives its topic from the first word of a user message, which reaches the
+// daemon over unauthenticated channels, so "../.." must not survive into
+// filepath.Join.
+func SanitizeSlug(raw string) string {
+	lowered := strings.ToLower(strings.TrimSpace(raw))
+
+	var b strings.Builder
+	for _, r := range lowered {
+		switch {
+		case r >= 'a' && r <= 'z', r >= '0' && r <= '9':
+			b.WriteRune(r)
+		case r == '_', r == '-', r == ' ', r == '.', r == '/', r == '\\', r == ':':
+			// Separators and every path metacharacter collapse to one underscore.
+			b.WriteRune('_')
+		}
+	}
+
+	slug := b.String()
+	for strings.Contains(slug, "__") {
+		slug = strings.ReplaceAll(slug, "__", "_")
+	}
+	slug = strings.Trim(slug, "_")
+
+	if len(slug) > 30 {
+		slug = strings.Trim(slug[:30], "_")
+	}
+	return slug
+}
+
+func titleFromSlug(slug string) string {
+	words := strings.Fields(strings.ReplaceAll(slug, "_", " "))
+	for i, w := range words {
+		words[i] = strings.ToUpper(w[:1]) + w[1:]
+	}
+	return strings.Join(words, " ")
+}
+
 func (w *WikiEngine) parsePage(slug, path, content string) *WikiPage {
 	page := &WikiPage{
 		Slug:        slug,
-		Title:       strings.Title(strings.ReplaceAll(slug, "_", " ")),
+		Title:       titleFromSlug(slug),
 		Category:    "general",
 		Summary:     "",
 		Content:     content,
@@ -89,7 +133,7 @@ func (w *WikiEngine) parsePage(slug, path, content string) *WikiPage {
 	lines := strings.Split(content, "\n")
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmed, "# ") && page.Title == strings.Title(strings.ReplaceAll(slug, "_", " ")) {
+		if strings.HasPrefix(trimmed, "# ") && page.Title == titleFromSlug(slug) {
 			page.Title = strings.TrimPrefix(trimmed, "# ")
 		} else if strings.HasPrefix(trimmed, "> ") && page.Summary == "" {
 			page.Summary = strings.TrimPrefix(trimmed, "> ")
@@ -135,12 +179,13 @@ func (w *WikiEngine) AddOrUpdatePage(slug, title, category, summary, content str
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
-	cleanSlug := strings.ToLower(strings.TrimSpace(slug))
-	cleanSlug = strings.ReplaceAll(cleanSlug, " ", "_")
-	cleanSlug = strings.ReplaceAll(cleanSlug, "-", "_")
+	cleanSlug := SanitizeSlug(slug)
+	if cleanSlug == "" {
+		return nil, fmt.Errorf("wiki slug %q contains no usable characters", slug)
+	}
 
 	if title == "" {
-		title = strings.Title(strings.ReplaceAll(cleanSlug, "_", " "))
+		title = titleFromSlug(cleanSlug)
 	}
 
 	filePath := filepath.Join(w.wikiDir, cleanSlug+".md")
@@ -177,10 +222,9 @@ func (w *WikiEngine) AddOrUpdatePage(slug, title, category, summary, content str
 }
 
 func (w *WikiEngine) AutoIngest(topic, summary, details string) (*WikiPage, error) {
-	slug := strings.ToLower(topic)
-	slug = strings.ReplaceAll(slug, " ", "_")
-	if len(slug) > 30 {
-		slug = slug[:30]
+	slug := SanitizeSlug(topic)
+	if slug == "" {
+		return nil, fmt.Errorf("wiki topic %q contains no usable characters", topic)
 	}
 
 	w.mu.RLock()
@@ -244,13 +288,34 @@ func (w *WikiEngine) GenerateLightweightIndex() string {
 		return ""
 	}
 
-	var lines []string
-	lines = append(lines, "[Project LLM-Wiki Knowledge Base]:")
-	for slug, page := range w.pages {
+	// Sorted, so the injected prefix is byte-identical between turns. Ranging a
+	// map reorders it every call, which defeats provider-side prompt caching.
+	slugs := make([]string, 0, len(w.pages))
+	for slug := range w.pages {
 		if slug == "index" {
 			continue
 		}
+		slugs = append(slugs, slug)
+	}
+	sort.Strings(slugs)
+
+	truncated := 0
+	if len(slugs) > maxIndexEntries {
+		truncated = len(slugs) - maxIndexEntries
+		slugs = slugs[:maxIndexEntries]
+	}
+	if len(slugs) == 0 {
+		return ""
+	}
+
+	lines := make([]string, 0, len(slugs)+2)
+	lines = append(lines, "[Project LLM-Wiki Knowledge Base]:")
+	for _, slug := range slugs {
+		page := w.pages[slug]
 		lines = append(lines, fmt.Sprintf("- [[%s]]: %s - %s", slug, page.Title, page.Summary))
+	}
+	if truncated > 0 {
+		lines = append(lines, fmt.Sprintf("- ...and %d more pages (ask to search the wiki)", truncated))
 	}
 	return strings.Join(lines, "\n")
 }

@@ -7,7 +7,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log"
-	"strconv"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -78,7 +78,7 @@ func (c *CronEngine) loadJobs() error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	rows, err := c.db.Query("SELECT id, schedule, prompt, channel, target_id, enabled, created_at FROM cron_jobs")
+	rows, err := c.db.Query("SELECT id, schedule, prompt, channel, target_id, enabled, created_at, last_run FROM cron_jobs")
 	if err != nil {
 		return err
 	}
@@ -89,9 +89,15 @@ func (c *CronEngine) loadJobs() error {
 		var job CronJob
 		var enabledInt int
 		var createdStr string
-		if err := rows.Scan(&job.ID, &job.Schedule, &job.Prompt, &job.Channel, &job.TargetID, &enabledInt, &createdStr); err == nil {
+		var lastRunStr sql.NullString
+		if err := rows.Scan(&job.ID, &job.Schedule, &job.Prompt, &job.Channel, &job.TargetID, &enabledInt, &createdStr, &lastRunStr); err == nil {
 			job.Enabled = (enabledInt == 1)
 			job.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", createdStr)
+			// Restoring last_run stops a job whose minute happens to match at
+			// startup from firing again after every restart.
+			if lastRunStr.Valid && lastRunStr.String != "" {
+				job.LastRun, _ = time.Parse("2006-01-02 15:04:05", lastRunStr.String)
+			}
 			c.jobs[job.ID] = &job
 		}
 	}
@@ -99,8 +105,8 @@ func (c *CronEngine) loadJobs() error {
 }
 
 func (c *CronEngine) AddJob(schedule, prompt, channel, targetID string) (*CronJob, error) {
-	if !isValidCron(schedule) {
-		return nil, fmt.Errorf("invalid 5-field cron expression '%s' (e.g. '0 9 * * *' or '*/15 * * * *')", schedule)
+	if err := validateCron(schedule); err != nil {
+		return nil, fmt.Errorf("invalid cron expression %q: %v (e.g. '0 9 * * *', '*/15 * * * *', '0 9 * * mon-fri')", schedule, err)
 	}
 
 	hash := sha256.Sum256([]byte(fmt.Sprintf("%s:%s:%d", schedule, prompt, time.Now().UnixNano())))
@@ -142,10 +148,14 @@ func (c *CronEngine) ListJobs() []*CronJob {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
-	var list []*CronJob
+	// Copies: the scheduler mutates LastRun on the stored jobs, so live
+	// pointers would let a reader observe a half-written value.
+	list := make([]*CronJob, 0, len(c.jobs))
 	for _, j := range c.jobs {
-		list = append(list, j)
+		snapshot := *j
+		list = append(list, &snapshot)
 	}
+	sort.Slice(list, func(i, k int) bool { return list[i].ID < list[k].ID })
 	return list
 }
 
@@ -166,21 +176,24 @@ func (c *CronEngine) Start(ctx context.Context) {
 }
 
 func (c *CronEngine) checkAndRun(ctx context.Context, now time.Time) {
-	c.mu.RLock()
-	var toRun []*CronJob
+	// Claim due jobs under the write lock. Stamping LastRun outside it raced
+	// with ListJobs, and both ticks inside one minute could claim the same job.
+	c.mu.Lock()
+	var toRun []CronJob
 	for _, job := range c.jobs {
 		if job.Enabled && matchesCron(job.Schedule, now) {
 			// Avoid double-execution within the same minute
 			if now.Sub(job.LastRun) > 50*time.Second {
-				toRun = append(toRun, job)
+				job.LastRun = now
+				toRun = append(toRun, *job)
 			}
 		}
 	}
-	c.mu.RUnlock()
+	c.mu.Unlock()
 
-	for _, job := range toRun {
-		job.LastRun = now
-		go c.executeJob(ctx, job)
+	for i := range toRun {
+		job := toRun[i]
+		go c.executeJob(ctx, &job)
 	}
 }
 
@@ -211,42 +224,4 @@ func (c *CronEngine) executeJob(ctx context.Context, job *CronJob) {
 
 	// Update DB last run
 	_, _ = c.db.Exec("UPDATE cron_jobs SET last_run = CURRENT_TIMESTAMP WHERE id = ?", job.ID)
-}
-
-func isValidCron(expr string) bool {
-	fields := strings.Fields(expr)
-	return len(fields) == 5
-}
-
-func matchesCron(expr string, t time.Time) bool {
-	fields := strings.Fields(expr)
-	if len(fields) != 5 {
-		return false
-	}
-
-	minMatch := matchField(fields[0], t.Minute(), 0, 59)
-	hourMatch := matchField(fields[1], t.Hour(), 0, 23)
-	domMatch := matchField(fields[2], t.Day(), 1, 31)
-	monMatch := matchField(fields[3], int(t.Month()), 1, 12)
-	dowMatch := matchField(fields[4], int(t.Weekday()), 0, 6)
-
-	return minMatch && hourMatch && domMatch && monMatch && dowMatch
-}
-
-func matchField(field string, val, min, max int) bool {
-	if field == "*" {
-		return true
-	}
-	if strings.HasPrefix(field, "*/") {
-		step, err := strconv.Atoi(field[2:])
-		if err == nil && step > 0 {
-			return (val % step) == 0
-		}
-		return false
-	}
-	num, err := strconv.Atoi(field)
-	if err == nil {
-		return num == val
-	}
-	return false
 }

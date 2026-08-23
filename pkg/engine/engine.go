@@ -3,6 +3,7 @@ package engine
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -104,6 +105,48 @@ func NewUnleashedEngine(cfg *config.AppConfig) (*UnleashedEngine, error) {
 	}, nil
 }
 
+// wikiTopicStopWords are the words a request most often opens with. Keying a
+// wiki page on them produced pages called "the", "can" and "please" that were
+// then advertised in every subsequent prompt.
+var wikiTopicStopWords = map[string]bool{
+	"a": true, "an": true, "the": true, "and": true, "or": true, "but": true,
+	"can": true, "could": true, "would": true, "should": true, "will": true,
+	"do": true, "does": true, "did": true, "is": true, "are": true, "was": true,
+	"i": true, "you": true, "we": true, "it": true, "this": true, "that": true,
+	"my": true, "your": true, "our": true, "me": true, "us": true,
+	"please": true, "hey": true, "hi": true, "hello": true, "ok": true, "okay": true,
+	"what": true, "why": true, "how": true, "when": true, "where": true, "who": true,
+	"let": true, "lets": true, "just": true, "now": true, "then": true, "also": true,
+	"add": true, "fix": true, "make": true, "run": true, "show": true, "get": true,
+	"set": true, "use": true, "help": true, "tell": true, "give": true, "need": true,
+	"to": true, "for": true, "with": true, "from": true, "on": true, "in": true, "of": true,
+}
+
+// wikiTopic picks the first two content-bearing words of a request. It returns
+// "" when the message has nothing worth filing, so short or purely
+// conversational turns no longer create a page.
+func wikiTopic(userMessage string) string {
+	if len(strings.TrimSpace(userMessage)) < 15 {
+		return ""
+	}
+
+	var picked []string
+	for _, w := range strings.Fields(strings.ToLower(userMessage)) {
+		w = strings.Trim(w, ".,:;!?'\"`()[]{}")
+		if len(w) < 3 || wikiTopicStopWords[w] {
+			continue
+		}
+		picked = append(picked, w)
+		if len(picked) == 2 {
+			break
+		}
+	}
+	if len(picked) == 0 {
+		return ""
+	}
+	return strings.Join(picked, "_")
+}
+
 func (e *UnleashedEngine) SetDriver(driverName string) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -168,12 +211,17 @@ func (e *UnleashedEngine) resolveAdapter() (adapters.CLIAdapter, string) {
 func (e *UnleashedEngine) Chat(ctx context.Context, sessionID, userMessage, channelName string, out chan<- Event) {
 	defer close(out)
 
-	// Lossless Context Management: Append user turn
+	var contextBlocks []string
+
+	// 0. Lossless Context Management: replay prior history. This is read before
+	// the current turn is appended, so the message being answered is not handed
+	// back to the model as its own context.
 	if e.LCMEngine != nil && e.cfg.LCM.Enabled {
+		if replay, err := e.LCMEngine.BuildContext(sessionID, e.cfg.LCM.ContextTokenBudget); err == nil && replay != "" {
+			contextBlocks = append(contextBlocks, replay)
+		}
 		_, _ = e.LCMEngine.AppendMessage(sessionID, "user", userMessage)
 	}
-
-	var contextBlocks []string
 
 	// 1. Ingest Dialectic User Persona
 	if e.ProfileMgr != nil {
@@ -248,6 +296,10 @@ func (e *UnleashedEngine) Chat(ctx context.Context, sessionID, userMessage, chan
 	options := map[string]string{
 		"effort": e.cfg.Model.Effort,
 		"model":  e.cfg.Model.ModelName,
+		// model.auto_approve_tools was previously declared but never read: every
+		// adapter hardcoded its permission bypass, so there was no way to turn it
+		// off for untrusted channels.
+		"auto_approve": strconv.FormatBool(e.cfg.Model.AutoApproveTools),
 	}
 
 	execResult, err := adapter.Execute(ctx, augmentedPrompt, sessionID, e.cfg.System.WorkspaceDir, options)
@@ -276,12 +328,7 @@ func (e *UnleashedEngine) Chat(ctx context.Context, sessionID, userMessage, chan
 
 	// 6. LLM-Wiki Auto-Ingestion
 	if e.WikiEngine != nil && e.cfg.Wiki.Enabled && e.cfg.Wiki.AutoBuild && execResult != nil && execResult.Response != "" {
-		if len(userMessage) > 10 {
-			topic := "session_knowledge"
-			words := strings.Fields(userMessage)
-			if len(words) > 0 {
-				topic = words[0]
-			}
+		if topic := wikiTopic(userMessage); topic != "" {
 			_, _ = e.WikiEngine.AutoIngest(topic, userMessage, execResult.Response)
 		}
 	}

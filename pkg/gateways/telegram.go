@@ -61,8 +61,11 @@ func NewTelegramGateway(eng *engine.UnleashedEngine, cfg config.TelegramGatewayC
 	}
 }
 
+// isAllowed fails closed. An empty allowlist used to mean "allow everyone",
+// which handed anyone who found the bot a permission-bypassed coding agent
+// running in the workspace directory.
 func (t *TelegramGateway) isAllowed(chatID int64) bool {
-	if len(t.cfg.AllowedChatIDs) == 0 {
+	if t.cfg.AdminChatID != 0 && chatID == t.cfg.AdminChatID {
 		return true
 	}
 	for _, id := range t.cfg.AllowedChatIDs {
@@ -73,11 +76,16 @@ func (t *TelegramGateway) isAllowed(chatID int64) bool {
 	return false
 }
 
+// sendMessage splits on rune boundaries rather than slicing bytes at 3990,
+// which could cut a multi-byte character in half and make Telegram reject the
+// message. Long replies are chunked now instead of truncated.
 func (t *TelegramGateway) sendMessage(chatID int64, text string) {
-	if len(text) > 4000 {
-		text = text[:3990] + "\n...(truncated)"
+	for _, chunk := range chunkMessage(text, 4000) {
+		t.postMessage(chatID, chunk)
 	}
+}
 
+func (t *TelegramGateway) postMessage(chatID int64, text string) {
 	payload := map[string]interface{}{
 		"chat_id": chatID,
 		"text":    text,
@@ -137,6 +145,10 @@ func (t *TelegramGateway) Start(ctx context.Context) error {
 		return nil
 	}
 
+	if len(t.cfg.AllowedChatIDs) == 0 && t.cfg.AdminChatID == 0 {
+		log.Println("[Telegram Gateway] WARNING: no allowed_chat_ids and no admin_chat_id configured - every message will be refused. Message the bot once and add the chat ID it replies with to config.yaml.")
+	}
+
 	log.Println("[Telegram Gateway] Starting Telegram Bot polling loop...")
 
 	for {
@@ -192,7 +204,8 @@ func (t *TelegramGateway) Start(ctx context.Context) error {
 
 			chatID := update.Message.Chat.ID
 			if !t.isAllowed(chatID) {
-				t.sendMessage(chatID, "⛔ Unauthorized.")
+				log.Printf("[Telegram Gateway] Refused message from unlisted chat %d\n", chatID)
+				t.sendMessage(chatID, fmt.Sprintf("⛔ Unauthorized. To grant access, add this chat ID to gateways.telegram.allowed_chat_ids in config.yaml:\n%d", chatID))
 				continue
 			}
 

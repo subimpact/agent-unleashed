@@ -28,7 +28,7 @@ Automatically repairs missing directories, regenerates template configurations, 
 4. **AI CLI Drivers:** Tests detection and binary paths for `agy`, `claude`, `aider`, `ollama`, and cloud APIs.
 5. **Database & Memory Palace Integrity:** Executes SQLite `PRAGMA integrity_check`, counts memory drawers, and checks cron jobs.
 6. **Network Gateway Ports:** Verifies port `8080` availability for REST and WebSocket streaming.
-7. **External Gateway Auth:** Tests Telegram Bot API token via `getMe` and Discord credentials.
+7. **External Gateway Auth:** Tests the Telegram Bot API token via `getMe`. (Discord credentials are validated by the gateway itself at connect time, not by `doctor`.)
 8. **Skills Discovery:** Validates YAML frontmatter on all specialized `.agents/skills/*/SKILL.md` runbooks.
 
 ---

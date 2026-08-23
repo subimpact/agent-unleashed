@@ -58,7 +58,9 @@ func (a *AiderAdapter) Execute(ctx context.Context, prompt string, sessionID str
 	args := []string{
 		"--message", prompt,
 		"--no-git",
-		"--yes",
+	}
+	if AutoApprove(options) {
+		args = append(args, "--yes")
 	}
 
 	start := time.Now()

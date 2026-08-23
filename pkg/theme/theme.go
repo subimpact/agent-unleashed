@@ -94,9 +94,9 @@ func (te *ThemeEngine) registerThemes() {
 	te.themes["matrix"] = &Theme{
 		Name:         "matrix",
 		DisplayName:  "🕶️ Matrix (Phosphor Green & Terminal Black)",
-		Primary:      "\033[38;2;34;197;94m",  // Bright Green #22c55e
-		Secondary:    "\033[38;2;74;222;128m", // Mint #4ade80
-		Accent:       "\033[38;2;187;247;208m",// Light Phosphor #bbf7d0
+		Primary:      "\033[38;2;34;197;94m",   // Bright Green #22c55e
+		Secondary:    "\033[38;2;74;222;128m",  // Mint #4ade80
+		Accent:       "\033[38;2;187;247;208m", // Light Phosphor #bbf7d0
 		Success:      "\033[38;2;34;197;94m",
 		Warning:      "\033[38;2;234;179;8m",
 		Error:        "\033[38;2;239;68;68m",
@@ -148,9 +148,9 @@ func (te *ThemeEngine) registerThemes() {
 	te.themes["amber"] = &Theme{
 		Name:         "amber",
 		DisplayName:  "📻 Retro Amber CRT (Vintage 1980s Terminal)",
-		Primary:      "\033[38;2;255;176;0m",   // Vintage Amber #ffb000
-		Secondary:    "\033[38;2;255;204;0m",   // Bright Amber #ffcc00
-		Accent:       "\033[38;2;255;136;0m",   // Dark Amber #ff8800
+		Primary:      "\033[38;2;255;176;0m", // Vintage Amber #ffb000
+		Secondary:    "\033[38;2;255;204;0m", // Bright Amber #ffcc00
+		Accent:       "\033[38;2;255;136;0m", // Dark Amber #ff8800
 		Success:      "\033[38;2;255;204;0m",
 		Warning:      "\033[38;2;255;176;0m",
 		Error:        "\033[38;2;255;50;50m",

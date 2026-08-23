@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -94,10 +95,18 @@ func (s *SkillIndexer) GenerateLightweightIndex() string {
 		return ""
 	}
 
-	var lines []string
+	// Sorted, so the injected prefix is byte-identical between turns. Ranging a
+	// map reorders it every call, which defeats provider-side prompt caching.
+	names := make([]string, 0, len(s.skills))
+	for name := range s.skills {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	lines := make([]string, 0, len(names)+1)
 	lines = append(lines, "[Available Specialized Skills Index]:")
-	for name, meta := range s.skills {
-		lines = append(lines, fmt.Sprintf("- skill:%s - %s", name, meta.Description))
+	for _, name := range names {
+		lines = append(lines, fmt.Sprintf("- skill:%s - %s", name, s.skills[name].Description))
 	}
 	return strings.Join(lines, "\n")
 }

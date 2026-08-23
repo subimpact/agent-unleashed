@@ -89,7 +89,7 @@ Connects to Discord via Bot Token for DM and Guild channel pairing.
 gateways:
   discord:
     enabled: true
-    token: "YOUR_DISCORD_BOT_TOKEN"
+    bot_token: "YOUR_DISCORD_BOT_TOKEN"
     allowed_channels:
       - "123456789012345678"
 ```

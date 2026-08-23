@@ -8,6 +8,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"os"
@@ -22,11 +23,11 @@ import (
 
 type Memory struct {
 	ID               string                 `json:"id"`
-	Wing             string                 `json:"wing"`             // Project / Workspace scope
-	Room             string                 `json:"room"`             // Topic / Domain (e.g. 'preferences', 'architecture', 'api')
-	Hall             string                 `json:"hall"`             // Category: 'fact', 'preference', 'lesson', 'decision'
-	Content          string                 `json:"content"`          // Verbatim content
-	Source           string                 `json:"source"`           // Source adapter / channel
+	Wing             string                 `json:"wing"`    // Project / Workspace scope
+	Room             string                 `json:"room"`    // Topic / Domain (e.g. 'preferences', 'architecture', 'api')
+	Hall             string                 `json:"hall"`    // Category: 'fact', 'preference', 'lesson', 'decision'
+	Content          string                 `json:"content"` // Verbatim content
+	Source           string                 `json:"source"`  // Source adapter / channel
 	CreatedAt        string                 `json:"created_at"`
 	AccessCount      int                    `json:"access_count"`
 	LastAccessed     string                 `json:"last_accessed,omitempty"`
@@ -44,6 +45,11 @@ type MemoryStats struct {
 	Halls         map[string]int `json:"halls"`
 	TopAccessed   []Memory       `json:"top_accessed"`
 }
+
+// errMemoryDisabled is returned by every store method when memory.enabled is
+// false: the engine leaves MemoryStore nil, and callers should degrade rather
+// than dereference it.
+var errMemoryDisabled = errors.New("palace-mnemosyne memory is disabled")
 
 type MemoryStore struct {
 	dbPath            string
@@ -84,7 +90,12 @@ func NewMemoryStore(dbPath string, vectorDim int, decayHalfLifeDays float64) (*M
 	return store, nil
 }
 
+// GetDB returns the underlying handle, or nil when memory is disabled and the
+// store was never constructed. Callers must check before using it.
 func (s *MemoryStore) GetDB() *sql.DB {
+	if s == nil {
+		return nil
+	}
 	return s.db
 }
 
@@ -134,6 +145,9 @@ func (s *MemoryStore) initDB() error {
 }
 
 func (s *MemoryStore) ComputeEmbedding(text string) []float32 {
+	if s == nil {
+		return nil
+	}
 	vec := make([]float32, s.vectorDim)
 	words := strings.Fields(strings.ToLower(text))
 	if len(words) == 0 {
@@ -176,6 +190,9 @@ func (s *MemoryStore) ComputeEmbedding(text string) []float32 {
 }
 
 func (s *MemoryStore) AddPalaceMemory(wing, room, hall, content, source string, metadata map[string]interface{}) (string, error) {
+	if s == nil {
+		return "", errMemoryDisabled
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -227,6 +244,9 @@ func (s *MemoryStore) AddMemory(hall, content, source string, metadata map[strin
 }
 
 func (s *MemoryStore) SearchMemories(query string, roomFilter string, limit int, minSimilarity float64) ([]Memory, error) {
+	if s == nil {
+		return nil, errMemoryDisabled
+	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -362,6 +382,9 @@ func (s *MemoryStore) SearchMemories(query string, roomFilter string, limit int,
 }
 
 func (s *MemoryStore) GetStats() (*MemoryStats, error) {
+	if s == nil {
+		return nil, errMemoryDisabled
+	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -406,6 +429,9 @@ func (s *MemoryStore) GetStats() (*MemoryStats, error) {
 }
 
 func (s *MemoryStore) GetRecentMemories(limit int) ([]Memory, error) {
+	if s == nil {
+		return nil, errMemoryDisabled
+	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -430,6 +456,9 @@ func (s *MemoryStore) GetRecentMemories(limit int) ([]Memory, error) {
 }
 
 func (s *MemoryStore) Close() error {
+	if s == nil {
+		return nil
+	}
 	if s.db != nil {
 		return s.db.Close()
 	}

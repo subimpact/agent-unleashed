@@ -57,7 +57,9 @@ func (c *ClaudeAdapter) Execute(ctx context.Context, prompt string, sessionID st
 
 	args := []string{
 		"-p", prompt,
-		"--dangerously-skip-permissions",
+	}
+	if AutoApprove(options) {
+		args = append(args, "--dangerously-skip-permissions")
 	}
 
 	start := time.Now()
