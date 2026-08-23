@@ -2,7 +2,7 @@
 
 <div align="center">
 
-[![Go Version](https://img.shields.io/badge/Go-1.19+-00ADD8?style=flat&logo=go)](https://golang.org)
+[![Go Version](https://img.shields.io/badge/Go-1.23+-00ADD8?style=flat&logo=go)](https://golang.org)
 [![License](https://img.shields.io/badge/License-MIT-emerald.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-black)](https://agent.subimpact.net)
 [![Website](https://img.shields.io/badge/Website-agent.subimpact.net-10b981)](https://agent.subimpact.net)

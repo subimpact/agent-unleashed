@@ -36,22 +36,6 @@ jobs:
             exit 1
           fi
 
-      # TEMPORARY diagnostic: report what a modern toolchain wants in go.mod.
-      - name: tidy diff (diagnostic)
-        if: matrix.os == 'ubuntu-latest'
-        shell: bash
-        run: |
-          go version
-          cp go.mod go.mod.orig && cp go.sum go.sum.orig
-          go mod tidy || echo "TIDY-FAILED"
-          echo "===== go.mod diff ====="
-          diff -u go.mod.orig go.mod || true
-          echo "===== go.sum diff (first 40) ====="
-          diff -u go.sum.orig go.sum | head -40 || true
-          echo "===== does it build after tidy? ====="
-          go build ./... && echo "BUILD-OK-AFTER-TIDY" || echo "BUILD-FAILED-AFTER-TIDY"
-          mv go.mod.orig go.mod && mv go.sum.orig go.sum
-
       - name: go vet
         run: go vet ./...
 
