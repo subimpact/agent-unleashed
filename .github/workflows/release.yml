@@ -1,0 +1,76 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to build and publish (e.g. v1.2.0)'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: build ${{ matrix.goos }}/${{ matrix.goarch }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { goos: linux,   goarch: amd64 }
+          - { goos: linux,   goarch: arm64 }
+          - { goos: darwin,  goarch: amd64 }
+          - { goos: darwin,  goarch: arm64 }
+          - { goos: windows, goarch: amd64 }
+          - { goos: windows, goarch: arm64 }
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
+          cache: true
+
+      # modernc.org/sqlite is pure Go, so every target cross-compiles with
+      # CGO disabled and no per-platform toolchain.
+      - name: build
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: '0'
+        run: |
+          name="agt-ul_${GOOS}_${GOARCH}"
+          if [ "$GOOS" = "windows" ]; then name="${name}.exe"; fi
+          go build -trimpath -ldflags "-s -w" -o "dist/${name}" .
+          ( cd dist && sha256sum "${name}" > "${name}.sha256" )
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: agt-ul_${{ matrix.goos }}_${{ matrix.goarch }}
+          path: dist/*
+          retention-days: 7
+
+  publish:
+    name: publish release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: staging
+
+      - name: collect artifacts and build checksums.txt
+        run: |
+          mkdir -p dist
+          find staging -type f ! -name '*.sha256' -exec cp {} dist/ \;
+          ( cd dist && sha256sum agt-ul_* > checksums.txt )
+          ls -l dist
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
+          files: dist/*
+          generate_release_notes: true

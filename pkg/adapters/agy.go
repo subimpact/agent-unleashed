@@ -81,7 +81,9 @@ func (a *AgyAdapter) Execute(ctx context.Context, prompt string, sessionID strin
 		"--output-format", "json",
 		fmt.Sprintf("--effort=%s", effort),
 		fmt.Sprintf("--print=%s", prompt),
-		"--dangerously-skip-permissions",
+	}
+	if AutoApprove(options) {
+		args = append(args, "--dangerously-skip-permissions")
 	}
 
 	a.mu.RLock()

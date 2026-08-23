@@ -2,7 +2,7 @@
 
 <div align="center">
 
-[![Go Version](https://img.shields.io/badge/Go-1.19+-00ADD8?style=flat&logo=go)](https://golang.org)
+[![Go Version](https://img.shields.io/badge/Go-1.23+-00ADD8?style=flat&logo=go)](https://golang.org)
 [![License](https://img.shields.io/badge/License-MIT-emerald.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-black)](https://agent.subimpact.net)
 [![Website](https://img.shields.io/badge/Website-agent.subimpact.net-10b981)](https://agent.subimpact.net)
@@ -67,10 +67,10 @@ graph TD
 2. **🏛️ Palace-Mnemosyne Cognitive Memory:** Spatial method-of-loci hierarchy (Wings $\rightarrow$ Rooms $\rightarrow$ Drawers) + Ebbinghaus temporal decay ($R = e^{-\lambda \Delta t}$) + FTS5 vector hybrid RAG. See [Memory Palace Guide](docs/MEMORY_PALACE.md).
 3. **⏰ In-Process 24/7 Cron Engine:** Native Goroutine scheduler for recurring unattended tasks with SQLite persistence. See [Cron Automations Guide](docs/CRON_AUTOMATIONS.md).
 4. **📊 Live Context Dashboard & Verbose Telemetry:** Real-time bottom console bar tracking input tokens, thinking tokens, cache read rates, and latency per turn (`:context`, `:verbose`).
-5. **🌐 24/7 Multi-Channel Gateways:** Real-time WebSocket streaming (`ws://localhost:8080/ws`), Telegram Bot (with inline approval buttons), Discord DM pair programming, and REST APIs. See [Gateways Guide](docs/GATEWAYS.md).
+5. **🌐 24/7 Multi-Channel Gateways:** Real-time WebSocket streaming (`ws://localhost:8080/ws`), Telegram Bot, Discord DM and mention pair programming, and REST APIs. Every gateway is authenticated and fails closed — see [Gateways Guide](docs/GATEWAYS.md).
 6. **🩺 System Doctor & Diagnostics:** 10-point system health audit (`agt-ul doctor`) and auto-remediation (`agt-ul doctor --fix`). See [Doctor & Updater Guide](docs/DOCTOR_AND_UPDATER.md).
 7. **⚡ Built-In Skill Package Manager:** Install specialized skills directly from GitHub (`agt-ul skill install Leonxlnx/taste-skill`). See [Skills & Plugins Guide](docs/SKILLS_AND_PLUGINS.md).
-8. **🧠 Lossless Context Management (LCM):** Hierarchical DAG summarization + permanent SQLite message ledger + verbatim past retrieval (`lcm_grep`, `lcm_describe`, `lcm_expand`) inspired by [hermes-lcm](https://github.com/stephenschoettler/hermes-lcm). See [Lossless Context Management Guide](docs/LOSSLESS_CONTEXT_MANAGEMENT.md).
+8. **🧠 Lossless Context Management (LCM):** Hierarchical summary nodes + a permanent SQLite message ledger, replayed into every prompt within a token budget, with verbatim retrieval of anything compressed (`:lcm grep`, `:lcm describe`, `:lcm expand`). Inspired by [hermes-lcm](https://github.com/stephenschoettler/hermes-lcm). See [Lossless Context Management Guide](docs/LOSSLESS_CONTEXT_MANAGEMENT.md).
 
 ---
 
@@ -151,6 +151,26 @@ go build -o agt-ul.exe .
 | **`:skills`** | List learned skill runbooks |
 | **`:clear`** | Clear terminal screen |
 | **`:exit`** | Exit CLI |
+
+---
+
+## 🔒 Security Model
+
+`agt-ul` drives a coding agent against your workspace, so every remote entry point is authenticated and **fails closed**.
+
+| Surface | Default | How to open it |
+| :--- | :--- | :--- |
+| **REST `/api/v1/*`** | Token required. Bound to `127.0.0.1`. | Blank `webhook_secret` generates one into `data/rest_api_token`. Send `Authorization: Bearer <token>`. |
+| **WebSocket `/ws`** | Token required, checked during the handshake. | Same token, as a header or `?token=<token>`. |
+| **Browser origins** | All cross-site requests refused; no wildcard CORS. | Add your UI to `gateways.rest_api.allowed_origins`. |
+| **DNS rebinding** | Non-loopback `Host` headers refused on a loopback bind. | Bind a public interface deliberately. |
+| **Telegram** | Refuses every chat. | Add IDs to `allowed_chat_ids` (or set `admin_chat_id`). Message the bot and it replies with its chat ID. |
+| **Discord** | Refuses every channel. | Add IDs to `allowed_channel_ids` or `guild_ids`. |
+| **Permission bypass** | `auto_approve_tools: true` passes `--dangerously-skip-permissions` / `--yes` to the driver. | Set `false` to keep each CLI's own confirmation prompts. |
+
+`/health` and `/healthz` stay unauthenticated for process supervisors and expose nothing about the workspace.
+
+> **Discord setup note:** message content is a privileged intent. Enable **Bot -> Privileged Gateway Intents -> Message Content** in the Discord developer portal, or the bot connects but receives empty messages.
 
 ---
 

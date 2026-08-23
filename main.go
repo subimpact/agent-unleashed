@@ -134,7 +134,7 @@ func main() {
 	}
 	eng.SetVerbose(verboseFlag)
 	if eng.MemoryStore != nil {
-		defer eng.MemoryStore.Close()
+		defer closeEngine(eng)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -164,14 +164,18 @@ func main() {
 
 	// 1. REST API & WebSocket Gateway
 	if cfg.Gateways.RESTAPI.Enabled {
-		wg.Add(1)
-		restGW := gateways.NewRESTAPIGateway(eng, cfg.Gateways.RESTAPI)
-		go func() {
-			defer wg.Done()
-			if err := restGW.Start(ctx); err != nil {
-				log.Printf("[REST Gateway] Error: %v\n", err)
-			}
-		}()
+		restGW, restErr := gateways.NewRESTAPIGateway(eng, cfg.Gateways.RESTAPI, cfg.System.DataDir)
+		if restErr != nil {
+			log.Printf("[REST Gateway] Disabled: %v\n", restErr)
+		} else {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				if err := restGW.Start(ctx); err != nil {
+					log.Printf("[REST Gateway] Error: %v\n", err)
+				}
+			}()
+		}
 	}
 
 	// 2. Telegram Gateway
@@ -214,6 +218,16 @@ func main() {
 	fmt.Println("✅ Agent-Unleashed shutdown complete.")
 }
 
+// closeEngine releases the memory store if there is one. With memory.enabled
+// set to false the engine leaves MemoryStore nil, and an unguarded deferred
+// Close() panicked - including while unwinding an earlier panic, which hid the
+// original failure entirely.
+func closeEngine(eng *engine.UnleashedEngine) {
+	if eng != nil {
+		_ = eng.MemoryStore.Close()
+	}
+}
+
 func printHelp() {
 	fmt.Printf("Agent-Unleashed (agt-ul) v%s - Universal Go Agent Harness & Gateway\n", updater.GetVersion())
 	fmt.Println("\nUsage:")
@@ -244,7 +258,7 @@ func runLCMReport(configPath string) {
 	if err != nil {
 		log.Fatalf("Engine error: %v", err)
 	}
-	defer eng.MemoryStore.Close()
+	defer closeEngine(eng)
 
 	if eng.LCMEngine == nil {
 		fmt.Println("❌ Lossless Context Management (LCM) engine is not initialized.")
@@ -268,7 +282,7 @@ func runWikiReport(configPath string) {
 	if err != nil {
 		log.Fatalf("Engine error: %v", err)
 	}
-	defer eng.MemoryStore.Close()
+	defer closeEngine(eng)
 
 	if eng.WikiEngine == nil {
 		fmt.Println("❌ LLM-Wiki is not initialized.")
@@ -292,9 +306,17 @@ func runCronReport(configPath string) {
 	if err != nil {
 		log.Fatalf("Engine error: %v", err)
 	}
-	defer eng.MemoryStore.Close()
+	defer closeEngine(eng)
 
-	cronEng, err := cron.NewCronEngine(eng.MemoryStore.GetDB(), eng, nil)
+	db := eng.MemoryStore.GetDB()
+	if db == nil {
+		fmt.Println()
+		fmt.Println("Cron jobs live in the memory database, which is disabled (set memory.enabled: true in config.yaml).")
+		fmt.Println()
+		return
+	}
+
+	cronEng, err := cron.NewCronEngine(db, eng, nil)
 	if err != nil {
 		log.Fatalf("Cron error: %v", err)
 	}
@@ -321,7 +343,7 @@ func runStatusReport(configPath string) {
 	if err != nil {
 		log.Fatalf("Engine error: %v", err)
 	}
-	defer eng.MemoryStore.Close()
+	defer closeEngine(eng)
 
 	fmt.Println("\n============================================================")
 	fmt.Println("  📊 AGENT-UNLEASHED (agt-ul) SYSTEM STATUS REPORT")
@@ -345,7 +367,13 @@ func runStatusReport(configPath string) {
 	fmt.Printf("  • Discord Bot     : %v\n", cfg.Gateways.Discord.Enabled)
 	fmt.Printf("  • REST API        : %v (http://%s:%d)\n", cfg.Gateways.RESTAPI.Enabled, cfg.Gateways.RESTAPI.Host, cfg.Gateways.RESTAPI.Port)
 
-	stats, _ := eng.MemoryStore.GetStats()
+	stats, statsErr := eng.MemoryStore.GetStats()
+	if statsErr != nil || stats == nil {
+		fmt.Println()
+		fmt.Println("Palace-Mnemosyne memory is disabled (set memory.enabled: true in config.yaml).")
+		fmt.Println()
+		return
+	}
 	fmt.Println("\n🏛️ Palace-Mnemosyne Memory:")
 	fmt.Printf("  • Total Drawers   : %d\n", stats.TotalMemories)
 	for room, count := range stats.Rooms {
@@ -363,9 +391,15 @@ func runMemoryReport(configPath string) {
 	if err != nil {
 		log.Fatalf("Engine error: %v", err)
 	}
-	defer eng.MemoryStore.Close()
+	defer closeEngine(eng)
 
-	stats, _ := eng.MemoryStore.GetStats()
+	stats, statsErr := eng.MemoryStore.GetStats()
+	if statsErr != nil || stats == nil {
+		fmt.Println()
+		fmt.Println("Palace-Mnemosyne memory is disabled (set memory.enabled: true in config.yaml).")
+		fmt.Println()
+		return
+	}
 	fmt.Println("\n🏛️ Palace-Mnemosyne Memory Palace Hierarchy:")
 	fmt.Printf("Total Factual Drawers: %d\n\n", stats.TotalMemories)
 	for room, count := range stats.Rooms {
@@ -391,7 +425,7 @@ func runHookMemory(configPath string) {
 		fmt.Println(`{"injectSteps": []}`)
 		return
 	}
-	defer eng.MemoryStore.Close()
+	defer closeEngine(eng)
 
 	recent, err := eng.MemoryStore.GetRecentMemories(3)
 	if err != nil || len(recent) == 0 {
@@ -429,7 +463,7 @@ func runHookReflect(configPath string) {
 		fmt.Println(`{}`)
 		return
 	}
-	defer eng.MemoryStore.Close()
+	defer closeEngine(eng)
 
 	convID, _ := payload["conversationId"].(string)
 	if convID == "" {

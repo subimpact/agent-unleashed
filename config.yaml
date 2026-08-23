@@ -15,7 +15,10 @@ system:
 model:
   driver: "auto"
   effort: "high"                   # Reasoning effort: 'low', 'medium', 'high'
-  auto_approve_tools: true         # Automatically execute tools without blocking
+  # Passes the driver's permission bypass (--dangerously-skip-permissions for
+  # agy/claude, --yes for aider). Required for unattended 24/7 operation; set
+  # false to keep each CLI's own confirmation prompts.
+  auto_approve_tools: true
   model_name: "auto"
   ollama_endpoint: "http://localhost:11434"
   
@@ -48,6 +51,17 @@ reflection:
   auto_extract_facts: true
   min_tool_steps_for_reflection: 2
 
+# Lossless Context Management: verbatim SQLite ledger, hierarchical summary
+# nodes, and replay of both back into each prompt.
+lcm:
+  enabled: true
+  db_path: "./data/lcm.sqlite"
+  token_threshold: 8000
+  auto_compress: true
+  # Tokens of replayed history injected into each prompt: summary nodes plus
+  # as many recent verbatim turns as fit.
+  context_token_budget: 2000
+
 # 24/7 Messaging Gateways
 gateways:
   cli:
@@ -56,11 +70,16 @@ gateways:
   telegram:
     enabled: false
     bot_token: ""
+    # Required. An empty list refuses every message - message the bot once and
+    # it replies with the chat ID to add here.
     allowed_chat_ids: []
     admin_chat_id: null
 
   discord:
     enabled: false
+    # Message content is a privileged intent: enable Bot > Privileged Gateway
+    # Intents > Message Content in the Discord developer portal, or the bot
+    # connects but every message arrives empty.
     bot_token: ""
     guild_ids: []
     allowed_channel_ids: []
@@ -69,4 +88,11 @@ gateways:
     enabled: true
     host: "127.0.0.1"
     port: 8080
+    # Shared secret for /api/v1/* and /ws. Leave blank and a token is generated
+    # into data/rest_api_token on first run. Send it as `Authorization: Bearer
+    # <token>`, `X-Agt-Token`, or `?token=` for WebSocket clients.
     webhook_secret: ""
+    # Browser origins allowed to call the gateway. Empty refuses every
+    # cross-site request, so a page you happen to have open cannot drive the
+    # agent. Add entries only for your own local UIs.
+    allowed_origins: []

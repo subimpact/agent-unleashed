@@ -102,14 +102,23 @@ func RunDiagnostics(configPath string, autoFix bool) *DoctorReport {
 	// 3. Configuration Check
 	cfg, err := config.LoadConfig(configPath)
 	if err != nil {
-		if autoFix {
-			_ = os.WriteFile(configPath, []byte("# Agent-Unleashed default\n"), 0644)
-			report.FixedCount++
-			addResult("Config", "Configuration File", StatusWarn,
-				"Regenerated default config.yaml (Auto-Fixed)", "")
+		// Never overwrite a config that already exists. It holds API keys and bot
+		// tokens, and the only way to reach this branch is a YAML syntax error -
+		// so the old auto-fix destroyed live credentials to repair a typo.
+		_, statErr := os.Stat(configPath)
+		if os.IsNotExist(statErr) && autoFix {
+			if writeErr := os.WriteFile(configPath, []byte("# Agent-Unleashed default\n"), 0644); writeErr == nil {
+				report.FixedCount++
+				addResult("Config", "Configuration File", StatusWarn,
+					fmt.Sprintf("Created missing %s (Auto-Fixed)", configPath), "Run 'agt-ul setup' to populate it")
+			} else {
+				addResult("Config", "Configuration File", StatusFail,
+					fmt.Sprintf("Could not create %s: %v", configPath, writeErr), "Check directory permissions")
+			}
 		} else {
 			addResult("Config", "Configuration File", StatusFail,
-				fmt.Sprintf("Failed to load %s: %v", configPath, err), "Run 'agt-ul setup' or 'agt-ul doctor --fix'")
+				fmt.Sprintf("Failed to parse %s: %v", configPath, err),
+				"Fix the YAML by hand. 'doctor --fix' will not overwrite an existing config because it may contain your API keys and bot tokens.")
 		}
 	} else {
 		addResult("Config", "Configuration File", StatusPass,
